@@ -1,4 +1,4 @@
-package modules
+package linkedin
 
 import (
 	"encoding/json"
@@ -12,15 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/playwright-community/playwright-go"
 	"github.com/stephensulimani/internlyapp/internal/db"
-	"github.com/stephensulimani/internlyapp/internal/utils"
 	"go.uber.org/zap"
 )
-
-type LinkedIn struct {
-	ChromiumPath string
-	Keyword      string
-	Location     string
-}
 
 func (l *LinkedIn) Scrape(log *zap.SugaredLogger) []db.Job {
 	jobs := []db.Job{}
@@ -48,7 +41,7 @@ func (l *LinkedIn) Scrape(log *zap.SugaredLogger) []db.Job {
 		log.Fatalf("could not create page: %v", err)
 	}
 
-	url := fmt.Sprintf("https://www.linkedin.com/jobs/search?keywords=%s&location=%s&trk=public_jobs_jobs-search-bar_search-submit", l.Keyword, l.Location)
+	url := l.SearchParams.BuildURL()
 
 	if _, err = page.Goto(url); err != nil {
 		log.Fatalf("could not goto: %v", err)
