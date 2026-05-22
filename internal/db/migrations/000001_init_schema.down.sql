@@ -1,0 +1,8 @@
+DROP INDEX IF EXISTS idx_jobs_source;
+
+DROP INDEX IF EXISTS idx_jobs_type;
+
+DROP TABLE IF EXISTS jobs;
+
+DROP EXTENSION IF EXISTS vector;
+
