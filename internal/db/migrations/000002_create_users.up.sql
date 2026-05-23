@@ -4,11 +4,14 @@ CREATE TABLE IF NOT EXISTS users (
     last_name text NOT NULL,
     email text UNIQUE NOT NULL,
     password text NOT NULL,
-    is_admin boolean DEFAULT FALSE,
-    is_active boolean DEFAULT FALSE,
-    is_premium boolean DEFAULT FALSE,
+    discord_id text UNIQUE,
+    is_admin boolean DEFAULT FALSE NOT NULL,
+    is_active boolean DEFAULT FALSE NOT NULL,
+    is_premium boolean DEFAULT FALSE NOT NULL,
     created_at timestamptz DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_email ON users (email);
+
+CREATE INDEX idx_users_discord_id ON users (discord_id);
 

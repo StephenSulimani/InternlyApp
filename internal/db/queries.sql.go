@@ -60,6 +60,49 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 	return i, err
 }
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (first_name, last_name, email, password, is_active, is_admin, is_premium)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING
+    id, first_name, last_name, email, password, discord_id, is_admin, is_active, is_premium, created_at
+`
+
+type CreateUserParams struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	IsActive  *bool  `json:"is_active"`
+	IsAdmin   *bool  `json:"is_admin"`
+	IsPremium *bool  `json:"is_premium"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.FirstName,
+		arg.LastName,
+		arg.Email,
+		arg.Password,
+		arg.IsActive,
+		arg.IsAdmin,
+		arg.IsPremium,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Password,
+		&i.DiscordID,
+		&i.IsAdmin,
+		&i.IsActive,
+		&i.IsPremium,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getJobsByCompany = `-- name: GetJobsByCompany :many
 SELECT
     id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, metadata, embedding
@@ -99,4 +142,18 @@ func (q *Queries) GetJobsByCompany(ctx context.Context, company *string) ([]Job,
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUserCount = `-- name: GetUserCount :one
+SELECT
+    COUNT(*)
+FROM
+    users
+`
+
+func (q *Queries) GetUserCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getUserCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
