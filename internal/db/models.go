@@ -22,3 +22,20 @@ type Job struct {
 	Metadata        []byte             `json:"metadata"`
 	Embedding       *pgvector.Vector   `json:"embedding"`
 }
+
+type User struct {
+	ID        pgtype.UUID        `json:"id"`
+	FirstName string             `json:"first_name"`
+	LastName  string             `json:"last_name"`
+	Email     string             `json:"email"`
+	Password  string             `json:"password"`
+	IsAdmin   *bool              `json:"is_admin"`
+	IsActive  *bool              `json:"is_active"`
+	IsPremium *bool              `json:"is_premium"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type UserSavedJob struct {
+	UserID pgtype.UUID `json:"user_id"`
+	JobID  pgtype.UUID `json:"job_id"`
+}
