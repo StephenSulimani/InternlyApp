@@ -10,9 +10,13 @@ import (
 )
 
 func RunMigrations(databaseURL string) {
-	// Note: databaseURL should look like "postgres://user:pass@localhost:5432/dbname?sslmode=disable"
+	RunMigrationsFrom("file://internal/db/migrations", databaseURL)
+}
+
+func RunMigrationsFrom(source string, databaseURL string) {
+	// databaseURL should look like "postgres://user:pass@localhost:5432/dbname?sslmode=disable"
 	m, err := migrate.New(
-		"file://internal/db/migrations", // Path to your .sql files
+		source,
 		databaseURL,
 	)
 	if err != nil {

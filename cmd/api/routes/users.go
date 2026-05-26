@@ -16,6 +16,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// hashPassword is swapped in tests to cover hashing failures.
+var hashPassword = utils.HashPassword
+
 func UserRouter() *mux.Router {
 	router := mux.NewRouter()
 	router.Use(middleware.EnsureJSONBody)
@@ -60,7 +63,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashed_password, err := utils.HashPassword(parsed_json.Password)
+	hashed_password, err := hashPassword(parsed_json.Password)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, types.ErrorResponse("Error hashing password"), http.StatusInternalServerError)
@@ -89,14 +92,15 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	_, err = query.CreateUser(context.Background(), new_user)
 	if err != nil {
 		var pgError *pgconn.PgError
-
-		if errors.As(err, &pgError) {
-			if pgError.Code == "23505" {
-				w.WriteHeader(http.StatusBadRequest)
-				http.Error(w, types.ErrorResponse("User already exists"), http.StatusBadRequest)
-				return
-			}
+		if errors.As(err, &pgError) && pgError.Code == "23505" {
+			w.WriteHeader(http.StatusBadRequest)
+			http.Error(w, types.ErrorResponse("User already exists"), http.StatusBadRequest)
+			return
 		}
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, types.ErrorResponse("Error creating user"), http.StatusInternalServerError)
+		log.Error(err)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

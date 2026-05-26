@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
-	"github.com/stephensulimani/internlyapp/cmd/api/routes"
+	"github.com/stephensulimani/internlyapp/cmd/api/server"
 	"github.com/stephensulimani/internlyapp/internal/db"
 	"github.com/stephensulimani/internlyapp/internal/utils"
 	"go.uber.org/zap"
@@ -26,19 +24,10 @@ func main() {
 
 	db := attachDatabase(log)
 
-	router := mux.NewRouter()
-
-	router.Use(middleware.LoggingMiddleware(log))
-
-	router.Use(middleware.DatabaseMiddleware(db))
-
-	router.Use(middleware.LoggerContext(log))
-
-	router.PathPrefix("/").Handler(routes.UserRouter())
-
 	defer db.Close()
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", api_host, api_port), router))
+	handler := server.NewHandler(log, db)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", api_host, api_port), handler))
 }
 
 func attachDatabase(log *zap.SugaredLogger) *pgxpool.Pool {
