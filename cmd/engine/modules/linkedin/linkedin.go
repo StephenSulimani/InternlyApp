@@ -1,11 +1,9 @@
 package linkedin
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -15,119 +13,111 @@ import (
 	"go.uber.org/zap"
 )
 
-func (l *LinkedIn) Scrape(log *zap.SugaredLogger) []db.Job {
+func (l *LinkedIn) Scrape(log *zap.SugaredLogger) ([]db.Job, error) {
 	jobs := []db.Job{}
+
 	pw, err := playwright.Run()
 	if err != nil {
-		log.Fatalf("could not start playwright: %v", err)
+		return nil, fmt.Errorf("start playwright: %w", err)
 	}
+	defer pw.Stop()
 
-	absPath, _ := filepath.Abs(l.ChromiumPath)
+	absPath, err := filepath.Abs(l.ChromiumPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve chromium path: %w", err)
+	}
 
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		ExecutablePath: playwright.String(absPath),
-		Headless:       playwright.Bool(false), // Set to false to see it in action!
+		Headless:       playwright.Bool(l.Headless),
 		Args: []string{
 			"--disable-blink-features=AutomationControlled",
 		},
 	})
 	if err != nil {
-		log.Fatalf("could not launch CloakBrowser: %v", err)
+		return nil, fmt.Errorf("launch chromium at %s: %w", absPath, err)
 	}
 	defer browser.Close()
 
 	page, err := browser.NewPage()
 	if err != nil {
-		log.Fatalf("could not create page: %v", err)
+		return nil, fmt.Errorf("create page: %w", err)
 	}
 
 	url := l.SearchParams.BuildURL()
 
 	if _, err = page.Goto(url); err != nil {
-		log.Fatalf("could not goto: %v", err)
+		return nil, fmt.Errorf("goto %s: %w", url, err)
 	}
 
 	element := page.Locator("#base-contextual-sign-in-modal > div > section > button > icon > svg")
-
 	if _, err := element.IsVisible(); err == nil {
 		element.Click()
 	}
 
 	listSelector := "#main-content > section.two-pane-serp-page__results-list > ul > li"
-
 	entries := page.Locator(listSelector)
 
 	count, err := entries.Count()
 	if err != nil {
-		log.Fatalf("could not count entries: %v", err)
+		return nil, fmt.Errorf("count job entries: %w", err)
+	}
+	if count == 0 {
+		return nil, fmt.Errorf("no job listings found for %s", url)
 	}
 
 	for i := range count {
-		sleep_time := rand.Intn(5)
-		time.Sleep(time.Duration(sleep_time) * time.Second)
-		entry := entries.Nth(i)
+		if l.MaxJobs > 0 && i >= l.MaxJobs {
+			break
+		}
 
+		sleepTime := rand.Intn(5)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
+
+		entry := entries.Nth(i)
 		entry.Click()
 
 		title, _ := entry.Locator("h3").InnerText()
-
 		company, _ := entry.Locator("h4").InnerText()
-
 		location, _ := entry.Locator(".job-search-card__location").InnerText()
-
-		company_image_url, _ := entry.Locator(".artdeco-entity-image").GetAttribute("src")
-
+		companyImageURL, _ := entry.Locator(".artdeco-entity-image").GetAttribute("src")
 		description, _ := page.Locator(".show-more-less-html__markup").InnerText()
-		job_url, _ := entry.Locator(".base-card__full-link").GetAttribute("href")
+		jobURL, _ := entry.Locator(".base-card__full-link").GetAttribute("href")
+		jobURL = CleanJobURL(jobURL)
 
-		job_pattern := regexp.MustCompile(`\?.*`)
-
-		job_url = job_pattern.ReplaceAllString(job_url, "")
-
-		job_flags, _ := page.Locator(".description__job-criteria-item").All()
-		job_type := ""
+		jobFlags, _ := page.Locator(".description__job-criteria-item").All()
+		jobType := ""
 		seniority := ""
 
-		for _, flag := range job_flags {
-			flag_type, _ := flag.Locator("h3").InnerText()
-			if strings.Contains(flag_type, "Employment type") {
-				job_type, _ = flag.Locator("span").InnerText()
-				job_type = strings.TrimSpace(job_type)
+		for _, flag := range jobFlags {
+			flagType, _ := flag.Locator("h3").InnerText()
+			if strings.Contains(flagType, "Employment type") {
+				jobType, _ = flag.Locator("span").InnerText()
+				jobType = strings.TrimSpace(jobType)
 			}
-			if strings.Contains(flag_type, "Seniority level") {
+			if strings.Contains(flagType, "Seniority level") {
 				seniority, _ = flag.Locator("span").InnerText()
 				seniority = strings.TrimSpace(seniority)
 			}
 		}
-		metadata, err := json.Marshal(map[string]string{
-			"seniority":         seniority,
-			"description":       description,
-			"company_image_url": company_image_url,
-		})
+
+		metadata, err := BuildJobMetadata(seniority, description, companyImageURL)
 		if err != nil {
 			log.Errorf("could not marshal metadata: %v", err)
-		}
-		pgTimestamptz := pgtype.Timestamptz{
-			Time:  time.Now(),
-			Valid: true,
 		}
 
 		jobs = append(jobs, db.Job{
 			SourceUrl:       url,
 			SourceName:      "LinkedIn",
-			FirstSeen:       pgTimestamptz,
-			ApplicationLink: job_url,
+			FirstSeen:       pgtype.Timestamptz{Time: time.Now(), Valid: true},
+			ApplicationLink: jobURL,
 			Company:         &company,
 			RoleTitle:       &title,
 			Locations:       []string{location},
-			JobType:         &job_type,
+			JobType:         &jobType,
 			Metadata:        metadata,
 		})
-
-		fmt.Println(job_url)
 	}
 
-	fmt.Scanf("%s")
-
-	return jobs
+	return jobs, nil
 }

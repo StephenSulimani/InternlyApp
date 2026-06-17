@@ -8,6 +8,10 @@ import (
 type LinkedIn struct {
 	ChromiumPath string
 	SearchParams LinkedInSearchParams
+	// MaxJobs limits how many listings to scrape. Zero means no limit.
+	MaxJobs int
+	// Headless controls whether Chromium runs without a visible window.
+	Headless bool
 }
 
 type JobType string // f_JT
