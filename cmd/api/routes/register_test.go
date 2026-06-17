@@ -15,6 +15,7 @@ import (
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
 	"github.com/stephensulimani/internlyapp/cmd/api/utils"
 	"github.com/stephensulimani/internlyapp/internal/db"
+	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -205,7 +206,7 @@ func TestRegisterUser_errors(t *testing.T) {
 
 	t.Run("handler json unmarshal error", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		req := registerRequest(t, []byte(`{"first_name":123,"last_name":"Lovelace","email":"a@example.com","password":"pw"}`), &mockUserStore{}, log)
+		req := registerRequest(t, []byte(`{"first_name":123,"last_name":"Lovelace","email":"a@example.com","password":"pw"}`), service.NewUserService(&mockUserStore{}, nil), log)
 		RegisterUser(rec, req)
 
 		assertAPIError(t, rec, http.StatusBadRequest, "Error parsing request body")
@@ -214,21 +215,19 @@ func TestRegisterUser_errors(t *testing.T) {
 	t.Run("get user count database error", func(t *testing.T) {
 		store := &mockUserStore{countErr: errors.New("db unavailable")}
 		rec := httptest.NewRecorder()
-		req := registerRequest(t, validRegisterJSON(), store, log)
+		req := registerRequest(t, validRegisterJSON(), service.NewUserService(store, nil), log)
 		RegisterUser(rec, req)
 
 		assertAPIError(t, rec, http.StatusInternalServerError, "Error querying the database")
 	})
 
 	t.Run("hash password error", func(t *testing.T) {
-		original := hashPassword
-		hashPassword = func(string) (string, error) {
+		users := service.NewUserService(&mockUserStore{}, func(string) (string, error) {
 			return "", errors.New("hash failed")
-		}
-		t.Cleanup(func() { hashPassword = original })
+		})
 
 		rec := httptest.NewRecorder()
-		req := registerRequest(t, validRegisterJSON(), &mockUserStore{}, log)
+		req := registerRequest(t, validRegisterJSON(), users, log)
 		RegisterUser(rec, req)
 
 		assertAPIError(t, rec, http.StatusInternalServerError, "Error hashing password")
@@ -237,7 +236,7 @@ func TestRegisterUser_errors(t *testing.T) {
 	t.Run("create user database error", func(t *testing.T) {
 		store := &mockUserStore{createErr: errors.New("insert failed")}
 		rec := httptest.NewRecorder()
-		req := registerRequest(t, validRegisterJSON(), store, log)
+		req := registerRequest(t, validRegisterJSON(), service.NewUserService(store, nil), log)
 		RegisterUser(rec, req)
 
 		assertAPIError(t, rec, http.StatusInternalServerError, "Error creating user")
@@ -251,13 +250,17 @@ type registerBody struct {
 	Password  string `json:"password,omitempty"`
 }
 
-func testRegisterHandler(store userStore) http.Handler {
+func testRegisterHandler(store service.UserStore) http.Handler {
+	return testRegisterHandlerWithService(service.NewUserService(store, nil))
+}
+
+func testRegisterHandlerWithService(users *service.UserService) http.Handler {
 	log := zap.NewNop().Sugar()
 	router := mux.NewRouter()
 	router.Use(middleware.LoggerContext(log))
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := withUserStore(r.Context(), store)
+			ctx := withUserService(r.Context(), users)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
@@ -265,13 +268,13 @@ func testRegisterHandler(store userStore) http.Handler {
 	return router
 }
 
-func registerRequest(t *testing.T, body []byte, store userStore, log *zap.SugaredLogger) *http.Request {
+func registerRequest(t *testing.T, body []byte, users *service.UserService, log *zap.SugaredLogger) *http.Request {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodPost, "/register", nil)
 	ctx := middleware.WithBody(req.Context(), body)
 	ctx = middleware.WithLogger(ctx, log)
-	ctx = withUserStore(ctx, store)
+	ctx = withUserService(ctx, users)
 	return req.WithContext(ctx)
 }
 

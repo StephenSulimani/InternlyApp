@@ -5,13 +5,14 @@ import (
 
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
 	"github.com/stephensulimani/internlyapp/internal/db"
+	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
 )
 
 type requestDeps struct {
 	body  []byte
 	log   *zap.SugaredLogger
-	users userStore
+	users *service.UserService
 }
 
 func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool) {
@@ -25,11 +26,11 @@ func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool
 		return nil, false
 	}
 
-	if store, ok := userStoreFromContext(r.Context()); ok {
+	if users, ok := userServiceFromContext(r.Context()); ok {
 		return &requestDeps{
 			body:  body,
 			log:   log,
-			users: store,
+			users: users,
 		}, true
 	}
 
@@ -41,6 +42,6 @@ func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool
 	return &requestDeps{
 		body:  body,
 		log:   log,
-		users: db.New(pool),
+		users: service.NewUserService(db.New(pool), nil),
 	}, true
 }
