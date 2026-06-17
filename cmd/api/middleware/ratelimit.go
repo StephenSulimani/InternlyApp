@@ -42,7 +42,7 @@ func RateLimit(r rate.Limit, burst int) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if !limiter.allow(clientIP(req)) {
-				http.Error(w, types.ErrorResponse("Too many requests"), http.StatusTooManyRequests)
+				types.WriteError(w, http.StatusTooManyRequests, "Too many requests")
 				return
 			}
 			next.ServeHTTP(w, req)

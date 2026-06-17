@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/db"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const MinPasswordLength = 8
@@ -32,7 +32,7 @@ type UserService struct {
 
 func NewUserService(store UserStore, hasher PasswordHasher) *UserService {
 	if hasher == nil {
-		hasher = hashPassword
+		hasher = auth.HashPassword
 	}
 	return &UserService{store: store, hasher: hasher}
 }
@@ -92,11 +92,6 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) error {
 	}
 
 	return nil
-}
-
-func hashPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-	return string(hash), err
 }
 
 func normalizeEmail(email string) string {

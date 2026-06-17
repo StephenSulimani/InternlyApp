@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/db"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type mockUserStore struct {
@@ -65,7 +65,7 @@ func TestUserService_Register(t *testing.T) {
 		if !boolVal(created.IsAdmin) || !boolVal(created.IsActive) || !boolVal(created.IsPremium) {
 			t.Fatal("expected bootstrap privileges")
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(created.Password), []byte("secure-password")); err != nil {
+		if !auth.CheckPassword("secure-password", created.Password) {
 			t.Fatal("expected bcrypt hash")
 		}
 	})

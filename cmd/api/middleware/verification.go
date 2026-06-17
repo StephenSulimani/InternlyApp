@@ -13,11 +13,9 @@ const maxBodyBytes = 1 << 20 // 1 MiB
 
 func EnsureJSONBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
 		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil || mediaType != "application/json" {
-			http.Error(w, types.ErrorResponse("Expected application/json"), http.StatusUnsupportedMediaType)
+			types.WriteError(w, http.StatusUnsupportedMediaType, "Expected application/json")
 			return
 		}
 
@@ -26,10 +24,10 @@ func EnsureJSONBody(next http.Handler) http.Handler {
 		if err != nil {
 			var maxErr *http.MaxBytesError
 			if errors.As(err, &maxErr) {
-				http.Error(w, types.ErrorResponse("Request body too large"), http.StatusRequestEntityTooLarge)
+				types.WriteError(w, http.StatusRequestEntityTooLarge, "Request body too large")
 				return
 			}
-			http.Error(w, types.ErrorResponse("Error reading request body"), http.StatusBadRequest)
+			types.WriteError(w, http.StatusBadRequest, "Error reading request body")
 			return
 		}
 

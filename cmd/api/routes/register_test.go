@@ -13,14 +13,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
-	"github.com/stephensulimani/internlyapp/cmd/api/utils"
+	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/db"
 	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
 )
 
 type apiResponse struct {
-	Success int    `json:"success"`
+	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
@@ -59,7 +59,7 @@ func TestRegisterRoute(t *testing.T) {
 			Password:  "secure-password",
 		})
 
-		assertStatus(t, rec, http.StatusOK)
+		assertStatus(t, rec, http.StatusCreated)
 		res := decodeAPIResponse(t, rec.Body)
 		if res.Message != "User successfully registered" {
 			t.Fatalf("message = %q", res.Message)
@@ -75,7 +75,7 @@ func TestRegisterRoute(t *testing.T) {
 		if !boolVal(created.IsAdmin) || !boolVal(created.IsActive) || !boolVal(created.IsPremium) {
 			t.Fatal("expected first user to be admin, active, and premium")
 		}
-		if !utils.CheckPasswordHash("secure-password", created.Password) {
+		if !auth.CheckPassword("secure-password", created.Password) {
 			t.Fatal("expected password to be stored as a bcrypt hash")
 		}
 	})
@@ -90,7 +90,7 @@ func TestRegisterRoute(t *testing.T) {
 			Email:     "grace@example.com",
 			Password:  "another-password",
 		})
-		assertStatus(t, rec, http.StatusOK)
+		assertStatus(t, rec, http.StatusCreated)
 
 		created := store.createCalls[0]
 		if boolVal(created.IsAdmin) || boolVal(created.IsActive) || boolVal(created.IsPremium) {
