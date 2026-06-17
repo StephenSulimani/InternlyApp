@@ -3,14 +3,20 @@ package service
 import (
 	"context"
 	"errors"
+	"net/mail"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stephensulimani/internlyapp/internal/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
+const MinPasswordLength = 8
+
 var (
 	ErrMissingFields = errors.New("missing required fields")
+	ErrInvalidEmail  = errors.New("invalid email")
+	ErrWeakPassword  = errors.New("weak password")
 	ErrUserExists    = errors.New("user already exists")
 	ErrCountUsers    = errors.New("count users")
 	ErrHashPassword  = errors.New("hash password")
@@ -39,8 +45,18 @@ type RegisterInput struct {
 }
 
 func (s *UserService) Register(ctx context.Context, input RegisterInput) error {
+	input.FirstName = strings.TrimSpace(input.FirstName)
+	input.LastName = strings.TrimSpace(input.LastName)
+	input.Email = normalizeEmail(input.Email)
+
 	if input.FirstName == "" || input.LastName == "" || input.Email == "" || input.Password == "" {
 		return ErrMissingFields
+	}
+	if !isValidEmail(input.Email) {
+		return ErrInvalidEmail
+	}
+	if len(input.Password) < MinPasswordLength {
+		return ErrWeakPassword
 	}
 
 	count, err := s.store.GetUserCount(ctx)
@@ -81,4 +97,16 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) error {
 func hashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	return string(hash), err
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func isValidEmail(email string) bool {
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return false
+	}
+	return addr.Address == email
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -70,19 +71,20 @@ func TestEnsureJSONBody(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects invalid json", func(t *testing.T) {
+	t.Run("rejects oversized body", func(t *testing.T) {
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		req := httptest.NewRequest(http.MethodPost, "/", io.NopCloser(bytesReader(`{`)))
+		body := make([]byte, maxBodyBytes+1)
+		req := httptest.NewRequest(http.MethodPost, "/", io.NopCloser(strings.NewReader(string(body))))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		EnsureJSONBody(next).ServeHTTP(rec, req)
 
-		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+		if rec.Code != http.StatusRequestEntityTooLarge {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusRequestEntityTooLarge)
 		}
 	})
 }

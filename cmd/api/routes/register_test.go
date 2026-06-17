@@ -106,9 +106,9 @@ func TestRegisterRoute(t *testing.T) {
 			name string
 			body registerBody
 		}{
-			{"missing first_name", registerBody{LastName: "Lovelace", Email: "a@example.com", Password: "pw"}},
-			{"missing last_name", registerBody{FirstName: "Ada", Email: "a@example.com", Password: "pw"}},
-			{"missing email", registerBody{FirstName: "Ada", LastName: "Lovelace", Password: "pw"}},
+			{"missing first_name", registerBody{LastName: "Lovelace", Email: "a@example.com", Password: "password1"}},
+			{"missing last_name", registerBody{FirstName: "Ada", Email: "a@example.com", Password: "password1"}},
+			{"missing email", registerBody{FirstName: "Ada", LastName: "Lovelace", Password: "password1"}},
 			{"missing password", registerBody{FirstName: "Ada", LastName: "Lovelace", Email: "a@example.com"}},
 			{"empty body", registerBody{}},
 		}
@@ -140,6 +140,30 @@ func TestRegisterRoute(t *testing.T) {
 			Password:  "secure-password",
 		})
 		assertAPIError(t, rec, http.StatusBadRequest, "User already exists")
+	})
+
+	t.Run("rejects invalid email", func(t *testing.T) {
+		handler := testRegisterHandler(&mockUserStore{})
+
+		rec := postRegister(t, handler, registerBody{
+			FirstName: "Ada",
+			LastName:  "Lovelace",
+			Email:     "not-an-email",
+			Password:  "secure-password",
+		})
+		assertAPIError(t, rec, http.StatusBadRequest, "Invalid email address")
+	})
+
+	t.Run("rejects weak password", func(t *testing.T) {
+		handler := testRegisterHandler(&mockUserStore{})
+
+		rec := postRegister(t, handler, registerBody{
+			FirstName: "Ada",
+			LastName:  "Lovelace",
+			Email:     "weak@example.com",
+			Password:  "short",
+		})
+		assertAPIError(t, rec, http.StatusBadRequest, "Password must be at least 8 characters")
 	})
 
 	t.Run("rejects json with wrong field types", func(t *testing.T) {
@@ -259,7 +283,8 @@ func testRegisterHandlerWithService(users *service.UserService) http.Handler {
 	router := mux.NewRouter()
 	router.Use(middleware.LoggerContext(log))
 	router.Use(UserServiceMiddleware(users))
-	router.PathPrefix("/").Handler(UserRouter())
+	router.Use(middleware.EnsureJSONBody)
+	router.HandleFunc("/register", RegisterUser).Methods("POST")
 	return router
 }
 

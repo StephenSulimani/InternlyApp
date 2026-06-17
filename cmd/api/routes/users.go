@@ -4,15 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
 	"github.com/stephensulimani/internlyapp/cmd/api/types"
 	"github.com/stephensulimani/internlyapp/internal/service"
+	"golang.org/x/time/rate"
 )
 
 func UserRouter() *mux.Router {
 	router := mux.NewRouter()
+	router.Use(middleware.RateLimit(rate.Every(time.Minute/5), 5))
 	router.Use(middleware.EnsureJSONBody)
 	router.HandleFunc("/register", RegisterUser).Methods("POST")
 	return router
@@ -48,6 +51,10 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrMissingFields):
 			http.Error(w, types.ErrorResponse("Missing required fields"), http.StatusBadRequest)
+		case errors.Is(err, service.ErrInvalidEmail):
+			http.Error(w, types.ErrorResponse("Invalid email address"), http.StatusBadRequest)
+		case errors.Is(err, service.ErrWeakPassword):
+			http.Error(w, types.ErrorResponse("Password must be at least 8 characters"), http.StatusBadRequest)
 		case errors.Is(err, service.ErrUserExists):
 			http.Error(w, types.ErrorResponse("User already exists"), http.StatusBadRequest)
 		case errors.Is(err, service.ErrCountUsers):

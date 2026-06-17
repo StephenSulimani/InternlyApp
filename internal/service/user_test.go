@@ -109,6 +109,54 @@ func TestUserService_Register(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects invalid email", func(t *testing.T) {
+		store := &mockUserStore{}
+		svc := NewUserService(store, nil)
+
+		err := svc.Register(context.Background(), RegisterInput{
+			FirstName: "Ada",
+			LastName:  "Lovelace",
+			Email:     "not-an-email",
+			Password:  "secure-password",
+		})
+		if !errors.Is(err, ErrInvalidEmail) {
+			t.Fatalf("err = %v, want ErrInvalidEmail", err)
+		}
+	})
+
+	t.Run("rejects weak password", func(t *testing.T) {
+		store := &mockUserStore{}
+		svc := NewUserService(store, nil)
+
+		err := svc.Register(context.Background(), RegisterInput{
+			FirstName: "Ada",
+			LastName:  "Lovelace",
+			Email:     "ada@example.com",
+			Password:  "short",
+		})
+		if !errors.Is(err, ErrWeakPassword) {
+			t.Fatalf("err = %v, want ErrWeakPassword", err)
+		}
+	})
+
+	t.Run("normalizes email", func(t *testing.T) {
+		store := &mockUserStore{count: 1}
+		svc := NewUserService(store, nil)
+
+		err := svc.Register(context.Background(), RegisterInput{
+			FirstName: "Ada",
+			LastName:  "Lovelace",
+			Email:     "  Ada@Example.COM ",
+			Password:  "secure-password",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if store.createCalls[0].Email != "ada@example.com" {
+			t.Fatalf("email = %q, want ada@example.com", store.createCalls[0].Email)
+		}
+	})
+
 	t.Run("count users error", func(t *testing.T) {
 		svc := NewUserService(&mockUserStore{countErr: errors.New("db down")}, nil)
 
@@ -116,7 +164,7 @@ func TestUserService_Register(t *testing.T) {
 			FirstName: "Ada",
 			LastName:  "Lovelace",
 			Email:     "a@b.com",
-			Password:  "pw",
+			Password:  "password1",
 		})
 		if !errors.Is(err, ErrCountUsers) {
 			t.Fatalf("err = %v, want ErrCountUsers", err)
@@ -132,7 +180,7 @@ func TestUserService_Register(t *testing.T) {
 			FirstName: "Ada",
 			LastName:  "Lovelace",
 			Email:     "a@b.com",
-			Password:  "pw",
+			Password:  "password1",
 		})
 		if !errors.Is(err, ErrHashPassword) {
 			t.Fatalf("err = %v, want ErrHashPassword", err)
@@ -146,7 +194,7 @@ func TestUserService_Register(t *testing.T) {
 			FirstName: "Ada",
 			LastName:  "Lovelace",
 			Email:     "a@b.com",
-			Password:  "pw",
+			Password:  "password1",
 		})
 		if !errors.Is(err, ErrCreateUser) {
 			t.Fatalf("err = %v, want ErrCreateUser", err)
