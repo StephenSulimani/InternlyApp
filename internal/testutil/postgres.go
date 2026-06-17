@@ -29,7 +29,9 @@ func SetupPostgres(t *testing.T) (*pgxpool.Pool, func()) {
 
 	root := RepoRoot(t)
 	migrations := fmt.Sprintf("file://%s", filepath.Join(root, "internal", "db", "migrations"))
-	db.RunMigrationsFrom(migrations, dsn)
+	if err := db.RunMigrationsFrom(migrations, dsn); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
 
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dsn)

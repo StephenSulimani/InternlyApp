@@ -258,12 +258,7 @@ func testRegisterHandlerWithService(users *service.UserService) http.Handler {
 	log := zap.NewNop().Sugar()
 	router := mux.NewRouter()
 	router.Use(middleware.LoggerContext(log))
-	router.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := withUserService(r.Context(), users)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	})
+	router.Use(UserServiceMiddleware(users))
 	router.PathPrefix("/").Handler(UserRouter())
 	return router
 }

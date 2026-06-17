@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
-	"github.com/stephensulimani/internlyapp/internal/db"
 	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
 )
@@ -26,15 +25,7 @@ func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool
 		return nil, false
 	}
 
-	if users, ok := userServiceFromContext(r.Context()); ok {
-		return &requestDeps{
-			body:  body,
-			log:   log,
-			users: users,
-		}, true
-	}
-
-	pool, ok := middleware.DBFromContext(r.Context())
+	users, ok := userServiceFromContext(r.Context())
 	if !ok {
 		return nil, false
 	}
@@ -42,6 +33,6 @@ func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool
 	return &requestDeps{
 		body:  body,
 		log:   log,
-		users: service.NewUserService(db.New(pool), nil),
+		users: users,
 	}, true
 }
