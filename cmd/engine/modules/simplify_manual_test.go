@@ -26,7 +26,10 @@ func TestManualSimplify_LiveFeed(t *testing.T) {
 	}
 
 	scraper := &Simplify{URL: url, JobType: "Internship"}
-	jobs := scraper.Scrape(zap.NewNop().Sugar())
+	jobs, err := scraper.Scrape(zap.NewNop().Sugar())
+	if err != nil {
+		t.Fatalf("scrape failed: %v", err)
+	}
 
 	if len(jobs) == 0 {
 		t.Fatal("expected at least one job from live Simplify feed")

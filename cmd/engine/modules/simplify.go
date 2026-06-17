@@ -16,45 +16,39 @@ type Simplify struct {
 	JobType string
 }
 
-func (s *Simplify) Scrape(log *zap.SugaredLogger) []db.Job {
+func (s *Simplify) Scrape(log *zap.SugaredLogger) ([]db.Job, error) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
 	req, err := http.NewRequest(http.MethodGet, s.URL, nil)
 	if err != nil {
-		log.Error(err)
-		return []db.Job{}
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error(err)
-		return []db.Job{}
+		return nil, fmt.Errorf("fetch listings: %w", err)
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Errorf("status code error: %d %s", resp.StatusCode, resp.Status)
-		return []db.Job{}
+		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, resp.Status)
 	}
 
 	var rawJSON []map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&rawJSON); err != nil {
-		log.Error(err)
-		return []db.Job{}
+		return nil, fmt.Errorf("decode listings: %w", err)
 	}
 
 	jobs, skipped, err := parseSimplifyListings(rawJSON, req.URL.String(), s.JobType)
 	if err != nil {
-		log.Error(err)
-		return []db.Job{}
+		return nil, err
 	}
 	if skipped > 0 {
 		log.Warnf("skipped %d simplify listings with invalid shape", skipped)
 	}
 
-	return jobs
+	return jobs, nil
 }
 
 func parseSimplifyListings(raw []map[string]any, sourceURL, jobType string) ([]db.Job, int, error) {

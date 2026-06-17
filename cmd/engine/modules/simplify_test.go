@@ -32,7 +32,10 @@ func TestSimplify_Scrape(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		scraper := &Simplify{URL: srv.URL, JobType: "Internship"}
-		jobs := scraper.Scrape(zap.NewNop().Sugar())
+		jobs, err := scraper.Scrape(zap.NewNop().Sugar())
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if len(jobs) != 1 {
 			t.Fatalf("jobs = %d, want 1", len(jobs))
@@ -66,37 +69,37 @@ func TestSimplify_Scrape(t *testing.T) {
 		}
 	})
 
-	t.Run("returns empty slice on non-200 response", func(t *testing.T) {
+	t.Run("returns error on non-200 response", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "upstream error", http.StatusBadGateway)
 		}))
 		t.Cleanup(srv.Close)
 
 		scraper := &Simplify{URL: srv.URL, JobType: "Internship"}
-		jobs := scraper.Scrape(zap.NewNop().Sugar())
-		if len(jobs) != 0 {
-			t.Fatalf("jobs = %d, want 0", len(jobs))
+		_, err := scraper.Scrape(zap.NewNop().Sugar())
+		if err == nil {
+			t.Fatal("expected error")
 		}
 	})
 
-	t.Run("returns empty slice on invalid json", func(t *testing.T) {
+	t.Run("returns error on invalid json", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = fmt.Fprint(w, `{`)
 		}))
 		t.Cleanup(srv.Close)
 
 		scraper := &Simplify{URL: srv.URL, JobType: "Internship"}
-		jobs := scraper.Scrape(zap.NewNop().Sugar())
-		if len(jobs) != 0 {
-			t.Fatalf("jobs = %d, want 0", len(jobs))
+		_, err := scraper.Scrape(zap.NewNop().Sugar())
+		if err == nil {
+			t.Fatal("expected error")
 		}
 	})
 
-	t.Run("returns empty slice on unreachable host", func(t *testing.T) {
+	t.Run("returns error on unreachable host", func(t *testing.T) {
 		scraper := &Simplify{URL: "http://127.0.0.1:1", JobType: "Internship"}
-		jobs := scraper.Scrape(zap.NewNop().Sugar())
-		if len(jobs) != 0 {
-			t.Fatalf("jobs = %d, want 0", len(jobs))
+		_, err := scraper.Scrape(zap.NewNop().Sugar())
+		if err == nil {
+			t.Fatal("expected error")
 		}
 	})
 }
@@ -166,6 +169,30 @@ func deref(s *string) string {
 	return *s
 }
 
-func TestSimplify_Scrape_implementsScraper(t *testing.T) {
+func TestSimplify_implementsScraper(t *testing.T) {
 	var _ Scraper = (*Simplify)(nil)
+}
+
+func TestSimplify_Scrape_skippedListingsStillSucceed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{"company_name": "missing fields"},
+			{
+				"locations":    []any{"Remote"},
+				"company_name": "Good Co",
+				"title":        "Intern",
+				"date_updated": float64(1_600_000_000),
+				"url":          "https://jobs.example.com/good",
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	jobs, err := (&Simplify{URL: srv.URL, JobType: "Internship"}).Scrape(zap.NewNop().Sugar())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("jobs = %d, want 1", len(jobs))
+	}
 }

@@ -6,5 +6,5 @@ import (
 )
 
 type Scraper interface {
-	Scrape(log *zap.SugaredLogger) []db.Job
+	Scrape(log *zap.SugaredLogger) ([]db.Job, error)
 }
