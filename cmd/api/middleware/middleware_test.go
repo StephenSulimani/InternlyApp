@@ -12,12 +12,19 @@ import (
 )
 
 func TestEnsureJSONBody(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	t.Run("accepts valid json and stores body in context", func(t *testing.T) {
+		body := []byte(`{"ok":true}`)
+		var gotBody []byte
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var ok bool
+			gotBody, ok = BodyFromContext(r.Context())
+			if !ok {
+				t.Fatal("expected body in context")
+			}
+			w.WriteHeader(http.StatusOK)
+		})
 
-	t.Run("accepts valid json", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", io.NopCloser(bytesReader(`{"ok":true}`)))
+		req := httptest.NewRequest(http.MethodPost, "/", io.NopCloser(bytesReader(body)))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
@@ -26,9 +33,16 @@ func TestEnsureJSONBody(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 		}
+		if string(gotBody) != string(body) {
+			t.Fatalf("body = %q, want %q", gotBody, body)
+		}
 	})
 
 	t.Run("rejects wrong content type", func(t *testing.T) {
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
 		req := httptest.NewRequest(http.MethodPost, "/", io.NopCloser(bytesReader(`{}`)))
 		req.Header.Set("Content-Type", "text/plain")
 		rec := httptest.NewRecorder()
@@ -41,6 +55,10 @@ func TestEnsureJSONBody(t *testing.T) {
 	})
 
 	t.Run("rejects unreadable body", func(t *testing.T) {
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
 		req := httptest.NewRequest(http.MethodPost, "/", errReadCloser{err: errors.New("read failed")})
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
@@ -53,6 +71,10 @@ func TestEnsureJSONBody(t *testing.T) {
 	})
 
 	t.Run("rejects invalid json", func(t *testing.T) {
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
 		req := httptest.NewRequest(http.MethodPost, "/", io.NopCloser(bytesReader(`{`)))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
@@ -67,8 +89,9 @@ func TestEnsureJSONBody(t *testing.T) {
 
 func TestDatabaseMiddleware(t *testing.T) {
 	var gotPool *pgxpool.Pool
+	var gotOK bool
 	handler := DatabaseMiddleware(nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPool = r.Context().Value("db").(*pgxpool.Pool)
+		gotPool, gotOK = DBFromContext(r.Context())
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -76,6 +99,9 @@ func TestDatabaseMiddleware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	handler.ServeHTTP(rec, req)
 
+	if !gotOK {
+		t.Fatal("expected db in context")
+	}
 	if gotPool != nil {
 		t.Fatal("expected nil pool in context")
 	}
@@ -84,8 +110,9 @@ func TestDatabaseMiddleware(t *testing.T) {
 func TestLoggerContext(t *testing.T) {
 	log := zap.NewNop().Sugar()
 	var gotLog *zap.SugaredLogger
+	var gotOK bool
 	handler := LoggerContext(log)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotLog = r.Context().Value("log").(*zap.SugaredLogger)
+		gotLog, gotOK = LoggerFromContext(r.Context())
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -93,6 +120,9 @@ func TestLoggerContext(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	handler.ServeHTTP(rec, req)
 
+	if !gotOK {
+		t.Fatal("expected logger in context")
+	}
 	if gotLog != log {
 		t.Fatal("expected logger in context")
 	}

@@ -8,12 +8,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
 	"github.com/stephensulimani/internlyapp/cmd/api/types"
 	"github.com/stephensulimani/internlyapp/cmd/api/utils"
 	"github.com/stephensulimani/internlyapp/internal/db"
-	"go.uber.org/zap"
 )
 
 // hashPassword is swapped in tests to cover hashing failures.
@@ -34,13 +32,17 @@ type RegisterUserBody struct {
 }
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-	raw_json := r.Context().Value("body").([]byte)
-	log := r.Context().Value("log").(*zap.SugaredLogger)
-	db_pool := r.Context().Value("db").(*pgxpool.Pool)
+
+	deps, ok := depsFromRequest(w, r)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, types.ErrorResponse("Error getting request dependencies"), http.StatusInternalServerError)
+		return
+	}
 
 	parsed_json := RegisterUserBody{}
 
-	err := json.Unmarshal(raw_json, &parsed_json)
+	err := json.Unmarshal(deps.body, &parsed_json)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, types.ErrorResponse("Error parsing request body"), http.StatusBadRequest)
@@ -53,13 +55,11 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := db.New(db_pool)
-
-	count, err := query.GetUserCount(context.Background())
+	count, err := deps.users.GetUserCount(context.Background())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, types.ErrorResponse("Error querying the database"), http.StatusInternalServerError)
-		log.Error(err)
+		deps.log.Error(err)
 		return
 	}
 
@@ -67,7 +67,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, types.ErrorResponse("Error hashing password"), http.StatusInternalServerError)
-		log.Error(err)
+		deps.log.Error(err)
 		return
 	}
 
@@ -89,7 +89,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		new_user.IsPremium = &true_val
 	}
 
-	_, err = query.CreateUser(context.Background(), new_user)
+	_, err = deps.users.CreateUser(context.Background(), new_user)
 	if err != nil {
 		var pgError *pgconn.PgError
 		if errors.As(err, &pgError) && pgError.Code == "23505" {
@@ -99,7 +99,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, types.ErrorResponse("Error creating user"), http.StatusInternalServerError)
-		log.Error(err)
+		deps.log.Error(err)
 		return
 	}
 

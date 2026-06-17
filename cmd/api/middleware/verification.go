@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -32,8 +31,7 @@ func EnsureJSONBody(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "body", body)
-
+		ctx := WithBody(r.Context(), body)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
