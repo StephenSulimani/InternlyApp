@@ -18,7 +18,7 @@ func writeRegisterError(w http.ResponseWriter, log *zap.SugaredLogger, err error
 	case errors.Is(err, service.ErrWeakPassword):
 		types.WriteError(w, http.StatusBadRequest, "Password must be at least 8 characters")
 	case errors.Is(err, service.ErrUserExists):
-		types.WriteError(w, http.StatusBadRequest, "User already exists")
+		types.WriteError(w, http.StatusConflict, "User already exists")
 	case errors.Is(err, service.ErrCountUsers):
 		log.Error(err)
 		types.WriteError(w, http.StatusInternalServerError, "Error querying the database")

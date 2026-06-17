@@ -139,7 +139,7 @@ func TestRegisterRoute(t *testing.T) {
 			Email:     "duplicate@example.com",
 			Password:  "secure-password",
 		})
-		assertAPIError(t, rec, http.StatusBadRequest, "User already exists")
+		assertAPIError(t, rec, http.StatusConflict, "User already exists")
 	})
 
 	t.Run("rejects invalid email", func(t *testing.T) {
