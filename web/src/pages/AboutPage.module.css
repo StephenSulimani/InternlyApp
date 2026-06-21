@@ -9,21 +9,23 @@
 }
 
 .article {
-  max-width: 72rem;
+  max-width: var(--max);
   margin: 0 auto;
-  padding: 4rem 1.5rem 5rem;
-  animation: rise 0.7s ease-out both;
+  padding: 3rem 1.5rem 5rem;
 }
 
 .header {
-  max-width: 36rem;
-  margin-bottom: 3.5rem;
+  max-width: 40rem;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--rule);
 }
 
 .eyebrow {
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
   color: var(--accent);
   margin-bottom: 1rem;
 }
@@ -32,7 +34,7 @@
   font-family: var(--font-serif);
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 400;
-  line-height: 1.05;
+  line-height: 1.02;
   letter-spacing: -0.03em;
 }
 
@@ -43,21 +45,21 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 16rem;
-  gap: 4rem;
+  grid-template-columns: 1fr 14rem;
+  gap: 3rem;
   align-items: start;
 }
 
 .prose {
   font-size: 1.05rem;
-  line-height: 1.75;
-  color: var(--ink-muted);
+  line-height: 1.8;
+  color: var(--text-muted);
 }
 
 .lead {
-  font-size: 1.2rem;
-  line-height: 1.65;
-  color: var(--ink);
+  font-size: 1.15rem;
+  line-height: 1.7;
+  color: var(--text);
   margin-bottom: 1.5rem;
 }
 
@@ -67,7 +69,6 @@
 
 .external {
   color: var(--accent);
-  font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: opacity 0.2s;
@@ -79,16 +80,18 @@
 
 .sheet {
   position: sticky;
-  top: 6rem;
-  padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.5);
+  top: 5rem;
+  padding: 1.25rem;
+  background: var(--bg-card);
   border: 1px solid var(--rule);
-  box-shadow: var(--shadow);
 }
 
 .sheetTitle {
-  font-family: var(--font-serif);
-  font-size: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--rule);
@@ -101,25 +104,40 @@
 }
 
 .fact dt {
-  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-faint);
+  color: var(--accent);
   margin-bottom: 0.35rem;
 }
 
 .fact dd {
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 .invite {
   margin-top: 4rem;
   padding: 2.5rem;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  position: relative;
+}
+
+.invite::before {
+  content: "Access";
+  position: absolute;
+  top: -0.6rem;
+  left: 1.5rem;
+  padding: 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg);
 }
 
 .inviteTitle {
@@ -131,62 +149,39 @@
 .inviteBody {
   margin-top: 1rem;
   max-width: 36rem;
-  font-size: 1rem;
-  line-height: 1.65;
-  opacity: 0.85;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-muted);
 }
 
 .inviteBody strong {
+  color: var(--text);
   font-weight: 600;
-  opacity: 1;
 }
 
 .email {
   display: inline-block;
   margin-top: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--ink);
-  background: var(--paper);
-  border-radius: 999px;
-  transition: transform 0.2s, background 0.2s;
+  padding: 0.7rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--bg);
+  background: var(--text);
+  border: 1px solid var(--text);
+  transition: background 0.2s, color 0.2s;
 }
 
 .email:hover {
-  transform: translateY(-1px);
-  background: var(--accent-soft);
-  color: var(--paper);
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  background: transparent;
+  color: var(--text);
 }
 
 @media (max-width: 768px) {
-  .article {
-    padding-top: 2.5rem;
-  }
-
   .layout {
     grid-template-columns: 1fr;
-    gap: 2.5rem;
   }
 
   .sheet {
     position: static;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .article {
-    animation: none;
   }
 }

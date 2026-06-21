@@ -1,4 +1,6 @@
 .env
 Chromium.app
 *.cov
+node_modules
+web/dist
 

@@ -59,14 +59,3 @@ export const mockListings: Listing[] = [
     posted: "3d ago",
   },
 ];
-
-export const tickerMessages = [
-  "1,200+ early-career roles indexed this week",
-  "42 new listings added today",
-  "Internships · new grad · full-time entry roles",
-  "Duplicates removed — one listing per role",
-  "Remote-friendly roles now at 340+",
-  "Summer 2026 season is live",
-  "New York · San Francisco · Chicago updated hourly",
-  "Save roles to your board — sign in to get started",
-];

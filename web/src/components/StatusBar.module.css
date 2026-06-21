@@ -1,0 +1,184 @@
+.bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 2rem;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  border-block: 1px solid var(--rule);
+  background: var(--bg-inset);
+}
+
+.live {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 12px var(--live-glow);
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+.liveLabel {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--live);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  justify-content: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.statLabel {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.season {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* Hero stack preview (exported from same module) */
+.stack {
+  position: relative;
+  width: 100%;
+  max-width: 22rem;
+  min-height: 20rem;
+  margin-inline: auto;
+}
+
+.miniCard {
+  position: absolute;
+  width: 88%;
+  padding: 1rem 1.1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--rule-strong);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.cardA {
+  top: 0;
+  left: 0;
+  z-index: 3;
+  transform: rotate(-2deg);
+}
+
+.cardB {
+  top: 4.5rem;
+  right: 0;
+  z-index: 2;
+  transform: rotate(1.5deg);
+  opacity: 0.92;
+}
+
+.cardC {
+  top: 9rem;
+  left: 8%;
+  z-index: 1;
+  transform: rotate(-0.5deg);
+  opacity: 0.78;
+}
+
+.miniType {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.miniCompany {
+  margin-top: 0.35rem;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.miniRole {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.miniLoc {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-faint);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+@media (max-width: 768px) {
+  .bar {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .live {
+    justify-content: center;
+  }
+
+  .stats {
+    justify-content: center;
+  }
+
+  .season {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 900px) {
+  .stack {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}

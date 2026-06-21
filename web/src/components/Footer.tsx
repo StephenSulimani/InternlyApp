@@ -7,8 +7,7 @@ export default function Footer() {
       <div className={styles.inner}>
         <p className={styles.wordmark}>Internly</p>
         <p className={styles.tagline}>
-          The early-career job board for internships, new-grad roles, and your
-          first full-time offer.
+          Early-career roles · One board
         </p>
         <nav className={styles.nav}>
           <Link to="/about">About</Link>

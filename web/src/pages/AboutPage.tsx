@@ -1,5 +1,6 @@
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import PageShell from "../components/PageShell";
 import styles from "./AboutPage.module.css";
 
 const highlights = [
@@ -11,7 +12,7 @@ const highlights = [
 
 export default function AboutPage() {
   return (
-    <div className={styles.page}>
+    <PageShell>
       <Navbar />
       <main className={styles.main}>
         <article className={styles.article}>
@@ -89,6 +90,6 @@ export default function AboutPage() {
         </article>
       </main>
       <Footer />
-    </div>
+    </PageShell>
   );
 }

@@ -3,22 +3,21 @@ import styles from "./ListingCard.module.css";
 
 type Props = {
   listing: Listing;
+  index: number;
 };
 
-export default function ListingCard({ listing }: Props) {
+export default function ListingCard({ listing, index }: Props) {
   return (
-    <article className={styles.card}>
-      {listing.isNew && <span className={styles.stamp}>New</span>}
-      <header className={styles.header}>
+    <article className={styles.row}>
+      <span className={styles.index}>{String(index).padStart(2, "0")}</span>
+      <div className={styles.main}>
+        {listing.isNew && <span className={styles.badge}>New</span>}
         <h3 className={styles.company}>{listing.company}</h3>
-        <span className={styles.posted}>{listing.posted}</span>
-      </header>
-      <p className={styles.role}>{listing.role}</p>
-      <footer className={styles.footer}>
-        <span>{listing.location}</span>
-        <span className={styles.divider}>·</span>
-        <span className={styles.type}>{listing.type}</span>
-      </footer>
+        <p className={styles.role}>{listing.role}</p>
+      </div>
+      <span className={styles.location}>{listing.location}</span>
+      <span className={styles.type}>{listing.type}</span>
+      <span className={styles.posted}>{listing.posted}</span>
     </article>
   );
 }

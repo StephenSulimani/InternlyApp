@@ -1,0 +1,27 @@
+.wrap {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mark {
+  position: absolute;
+  top: 28vh;
+  left: 50%;
+  font-family: var(--font-serif);
+  font-size: clamp(7rem, 20vw, 15rem);
+  font-style: italic;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(235, 230, 220, 0.045);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark {
+    transform: translate(-50%, 0) !important;
+  }
+}

@@ -2,15 +2,15 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(12px);
-  background: rgba(244, 240, 232, 0.82);
   border-bottom: 1px solid var(--rule);
+  background: rgba(10, 10, 9, 0.85);
+  backdrop-filter: blur(16px);
 }
 
 .nav {
-  max-width: 72rem;
+  max-width: var(--max);
   margin: 0 auto;
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,52 +18,56 @@
 
 .logo {
   font-family: var(--font-serif);
-  font-size: 1.75rem;
+  font-size: 1.65rem;
   letter-spacing: -0.02em;
-  transition: opacity 0.2s;
+  transition: color 0.2s;
 }
 
 .logo:hover {
-  opacity: 0.7;
+  color: var(--accent);
 }
 
 .links {
   display: flex;
   align-items: center;
-  gap: 1.75rem;
+  gap: 1.5rem;
 }
 
 .link {
-  font-size: 0.9rem;
-  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
   transition: color 0.2s;
 }
 
 .link:hover {
-  color: var(--ink);
+  color: var(--text);
 }
 
 .linkActive {
-  color: var(--ink);
-  font-weight: 500;
+  color: var(--accent);
 }
 
 .linkMuted {
-  color: var(--ink-muted);
+  color: var(--text-faint);
 }
 
 .cta {
-  padding: 0.55rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border: 1px solid var(--ink);
-  border-radius: 999px;
-  transition: background 0.2s, color 0.2s;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  border: 1px solid var(--rule-strong);
+  transition: border-color 0.2s, color 0.2s;
 }
 
 .cta:hover {
-  background: var(--ink);
-  color: var(--paper);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 @media (max-width: 540px) {
