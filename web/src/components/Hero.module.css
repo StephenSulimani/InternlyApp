@@ -1,0 +1,124 @@
+.hero {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 3rem;
+  animation: rise 0.8s ease-out both;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 2rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
+
+.issue {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.headline {
+  max-width: 14ch;
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.headline em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.subhead {
+  max-width: 38rem;
+  margin-top: 1.75rem;
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--ink-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.85rem 1.75rem;
+  font-weight: 500;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 999px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.primary:hover {
+  background: var(--accent);
+  transform: translateY(-1px);
+}
+
+.secondary {
+  padding: 0.85rem 1.75rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.secondary:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.pullquote {
+  margin-top: 4rem;
+  padding: 2rem 0 0;
+  border-top: 1px solid var(--rule);
+  max-width: 32rem;
+}
+
+.pullquote p {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.pullquote footer {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 2.5rem;
+  }
+
+  .pullquote {
+    margin-top: 3rem;
+  }
+}

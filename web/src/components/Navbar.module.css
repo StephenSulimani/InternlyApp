@@ -1,0 +1,73 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  background: rgba(244, 240, 232, 0.82);
+  border-bottom: 1px solid var(--rule);
+}
+
+.nav {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+  transition: opacity 0.2s;
+}
+
+.logo:hover {
+  opacity: 0.7;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.link {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  transition: color 0.2s;
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+.linkActive {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.linkMuted {
+  color: var(--ink-muted);
+}
+
+.cta {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cta:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+@media (max-width: 540px) {
+  .links a[href="/#board"] {
+    display: none;
+  }
+}

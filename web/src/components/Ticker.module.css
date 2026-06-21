@@ -1,0 +1,52 @@
+.wrap {
+  overflow: hidden;
+  border-block: 1px solid var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.65rem 0;
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: scroll 45s linear infinite;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 2rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0.88;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  flex-shrink: 0;
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+    justify-content: center;
+    gap: 0.5rem 1.5rem;
+    padding: 0.25rem 1rem;
+  }
+}

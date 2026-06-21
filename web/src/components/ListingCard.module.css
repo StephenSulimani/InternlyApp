@@ -1,0 +1,76 @@
+.card {
+  position: relative;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  box-shadow: var(--shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px) rotate(-0.3deg);
+  box-shadow: 0 16px 48px rgba(28, 27, 24, 0.12);
+}
+
+.stamp {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--paper);
+  background: var(--stamp);
+  border-radius: 2px;
+  transform: rotate(4deg);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.company {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.posted {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.role {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--rule);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+.divider {
+  opacity: 0.5;
+}
+
+.type {
+  color: var(--accent);
+  font-weight: 500;
+}

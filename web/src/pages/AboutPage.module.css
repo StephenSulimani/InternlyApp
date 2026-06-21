@@ -1,0 +1,192 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+}
+
+.article {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 5rem;
+  animation: rise 0.7s ease-out both;
+}
+
+.header {
+  max-width: 36rem;
+  margin-bottom: 3.5rem;
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.title em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 16rem;
+  gap: 4rem;
+  align-items: start;
+}
+
+.prose {
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--ink-muted);
+}
+
+.lead {
+  font-size: 1.2rem;
+  line-height: 1.65;
+  color: var(--ink);
+  margin-bottom: 1.5rem;
+}
+
+.prose p + p {
+  margin-top: 1.25rem;
+}
+
+.external {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.2s;
+}
+
+.external:hover {
+  opacity: 0.75;
+}
+
+.sheet {
+  position: sticky;
+  top: 6rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--rule);
+  box-shadow: var(--shadow);
+}
+
+.sheetTitle {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.fact dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-bottom: 0.35rem;
+}
+
+.fact dd {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.invite {
+  margin-top: 4rem;
+  padding: 2.5rem;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 2px;
+}
+
+.inviteTitle {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 400;
+}
+
+.inviteBody {
+  margin-top: 1rem;
+  max-width: 36rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  opacity: 0.85;
+}
+
+.inviteBody strong {
+  font-weight: 600;
+  opacity: 1;
+}
+
+.email {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 999px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.email:hover {
+  transform: translateY(-1px);
+  background: var(--accent-soft);
+  color: var(--paper);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .article {
+    padding-top: 2.5rem;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .sheet {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .article {
+    animation: none;
+  }
+}
