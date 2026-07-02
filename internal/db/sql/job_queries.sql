@@ -13,23 +13,12 @@ INSERT INTO jobs (source_url, source_name, first_seen, application_link, company
 RETURNING
     *;
 
--- name: GetUserCount :one
-SELECT
-    COUNT(*)
-FROM
-    users;
-
--- name: CreateUser :one
-INSERT INTO users (first_name, last_name, email, password, is_active, is_admin, is_premium)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING
-    *;
-
--- name: GetUserByEmail :one
+-- name: GetJobsLimit :many
 SELECT
     *
 FROM
-    users
-WHERE
-    email = $1;
+    jobs
+ORDER BY
+    first_seen DESC
+LIMIT $1;
 
