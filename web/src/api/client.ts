@@ -26,12 +26,21 @@ export async function apiClient<T>(
 
   if (!res.ok) {
     let body: unknown;
+    let message = res.statusText || "Request failed";
     try {
       body = await res.json();
+      if (
+        body &&
+        typeof body === "object" &&
+        "message" in body &&
+        typeof (body as { message: string }).message === "string"
+      ) {
+        message = (body as { message: string }).message;
+      }
     } catch {
       body = undefined;
     }
-    throw new ApiError(res.statusText || "Request failed", res.status, body);
+    throw new ApiError(message, res.status, body);
   }
 
   if (res.status === 204) {

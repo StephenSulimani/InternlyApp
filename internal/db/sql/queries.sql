@@ -25,3 +25,11 @@ INSERT INTO users (first_name, last_name, email, password, is_active, is_admin, 
 RETURNING
     *;
 
+-- name: GetUserByEmail :one
+SELECT
+    *
+FROM
+    users
+WHERE
+    email = $1;
+

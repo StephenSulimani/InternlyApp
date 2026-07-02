@@ -72,9 +72,9 @@ type CreateUserParams struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Password  string `json:"password"`
-	IsActive  *bool  `json:"is_active"`
-	IsAdmin   *bool  `json:"is_admin"`
-	IsPremium *bool  `json:"is_premium"`
+	IsActive  bool   `json:"is_active"`
+	IsAdmin   bool   `json:"is_admin"`
+	IsPremium bool   `json:"is_premium"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -142,6 +142,33 @@ func (q *Queries) GetJobsByCompany(ctx context.Context, company *string) ([]Job,
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT
+    id, first_name, last_name, email, password, discord_id, is_admin, is_active, is_premium, created_at
+FROM
+    users
+WHERE
+    email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Password,
+		&i.DiscordID,
+		&i.IsAdmin,
+		&i.IsActive,
+		&i.IsPremium,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getUserCount = `-- name: GetUserCount :one

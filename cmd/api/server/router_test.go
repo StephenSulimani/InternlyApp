@@ -9,6 +9,8 @@ import (
 )
 
 func TestNewHandler(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test-secret")
+
 	handler := NewHandler(zap.NewNop().Sugar(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/register", nil)

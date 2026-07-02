@@ -33,3 +33,20 @@ func writeRegisterError(w http.ResponseWriter, log *zap.SugaredLogger, err error
 		types.WriteError(w, http.StatusInternalServerError, "Error creating user")
 	}
 }
+
+func writeLoginError(w http.ResponseWriter, log *zap.SugaredLogger, err error) {
+	switch {
+	case errors.Is(err, service.ErrMissingFields):
+		types.WriteError(w, http.StatusBadRequest, "Missing required fields")
+	case errors.Is(err, service.ErrInvalidEmailOrPassword):
+		types.WriteError(w, http.StatusUnauthorized, "Invalid email or password")
+	case errors.Is(err, service.ErrUserInactive):
+		types.WriteError(w, http.StatusForbidden, "Account pending activation")
+	case errors.Is(err, service.ErrGetUser):
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error querying the database")
+	default:
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error logging in")
+	}
+}

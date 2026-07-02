@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
 	"github.com/stephensulimani/internlyapp/internal/auth"
@@ -25,11 +27,19 @@ type apiResponse struct {
 }
 
 type mockUserStore struct {
-	count      int64
-	countErr   error
-	createErr  error
-	createUser func(ctx context.Context, arg db.CreateUserParams) (db.User, error)
-	createCalls []db.CreateUserParams
+	count          int64
+	countErr       error
+	createErr      error
+	createUser     func(ctx context.Context, arg db.CreateUserParams) (db.User, error)
+	getUserByEmail func(ctx context.Context, email string) (db.User, error)
+	createCalls    []db.CreateUserParams
+}
+
+func (m *mockUserStore) GetUserByEmail(ctx context.Context, email string) (db.User, error) {
+	if m.getUserByEmail != nil {
+		return m.getUserByEmail(ctx, email)
+	}
+	return db.User{}, pgx.ErrNoRows
 }
 
 func (m *mockUserStore) GetUserCount(ctx context.Context) (int64, error) {
@@ -72,7 +82,7 @@ func TestRegisterRoute(t *testing.T) {
 		if created.FirstName != "Ada" || created.LastName != "Lovelace" || created.Email != "ada@example.com" {
 			t.Fatalf("unexpected create params: %+v", created)
 		}
-		if !boolVal(created.IsAdmin) || !boolVal(created.IsActive) || !boolVal(created.IsPremium) {
+		if !created.IsAdmin || !created.IsActive || !created.IsPremium {
 			t.Fatal("expected first user to be admin, active, and premium")
 		}
 		if !auth.CheckPassword("secure-password", created.Password) {
@@ -93,7 +103,7 @@ func TestRegisterRoute(t *testing.T) {
 		assertStatus(t, rec, http.StatusCreated)
 
 		created := store.createCalls[0]
-		if boolVal(created.IsAdmin) || boolVal(created.IsActive) || boolVal(created.IsPremium) {
+		if created.IsAdmin || created.IsActive || created.IsPremium {
 			t.Fatal("expected non-first user to have default privilege flags")
 		}
 	})
@@ -280,9 +290,11 @@ func testRegisterHandler(store service.UserStore) http.Handler {
 
 func testRegisterHandlerWithService(users *service.UserService) http.Handler {
 	log := zap.NewNop().Sugar()
+	tokens := auth.NewTokenIssuer("test-secret", time.Hour)
 	router := mux.NewRouter()
 	router.Use(middleware.LoggerContext(log))
 	router.Use(UserServiceMiddleware(users))
+	router.Use(TokenIssuerMiddleware(tokens))
 	router.Use(middleware.EnsureJSONBody)
 	router.HandleFunc("/register", RegisterUser).Methods("POST")
 	return router
@@ -295,6 +307,7 @@ func registerRequest(t *testing.T, body []byte, users *service.UserService, log 
 	ctx := middleware.WithBody(req.Context(), body)
 	ctx = middleware.WithLogger(ctx, log)
 	ctx = withUserService(ctx, users)
+	ctx = withTokenIssuer(ctx, auth.NewTokenIssuer("test-secret", time.Hour))
 	return req.WithContext(ctx)
 }
 
@@ -327,8 +340,8 @@ func postRegister(t *testing.T, handler http.Handler, body registerBody) *httpte
 	return rec
 }
 
-func boolVal(v *bool) bool {
-	return v != nil && *v
+func boolVal(v bool) bool {
+	return v
 }
 
 func assertStatus(t *testing.T, rec *httptest.ResponseRecorder, want int) {

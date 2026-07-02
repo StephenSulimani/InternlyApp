@@ -30,9 +30,9 @@ type User struct {
 	Email     string             `json:"email"`
 	Password  string             `json:"password"`
 	DiscordID *string            `json:"discord_id"`
-	IsAdmin   *bool              `json:"is_admin"`
-	IsActive  *bool              `json:"is_active"`
-	IsPremium *bool              `json:"is_premium"`
+	IsAdmin   bool               `json:"is_admin"`
+	IsActive  bool               `json:"is_active"`
+	IsPremium bool               `json:"is_premium"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 

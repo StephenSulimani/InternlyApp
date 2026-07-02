@@ -23,9 +23,12 @@ export default function Navbar() {
           >
             About
           </Link>
-          <button type="button" className={styles.cta}>
+          <Link
+            to="/login"
+            className={`${styles.cta} ${pathname === "/login" ? styles.linkActive : ""}`}
+          >
             Sign in
-          </button>
+          </Link>
         </div>
       </nav>
     </header>

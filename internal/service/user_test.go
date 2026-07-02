@@ -5,17 +5,26 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/db"
 )
 
 type mockUserStore struct {
-	count       int64
-	countErr    error
-	createErr   error
-	createUser  func(ctx context.Context, arg db.CreateUserParams) (db.User, error)
-	createCalls []db.CreateUserParams
+	count          int64
+	countErr       error
+	createErr      error
+	createUser     func(ctx context.Context, arg db.CreateUserParams) (db.User, error)
+	getUserByEmail func(ctx context.Context, email string) (db.User, error)
+	createCalls    []db.CreateUserParams
+}
+
+func (m *mockUserStore) GetUserByEmail(ctx context.Context, email string) (db.User, error) {
+	if m.getUserByEmail != nil {
+		return m.getUserByEmail(ctx, email)
+	}
+	return db.User{}, pgx.ErrNoRows
 }
 
 func (m *mockUserStore) GetUserCount(ctx context.Context) (int64, error) {
@@ -62,7 +71,7 @@ func TestUserService_Register(t *testing.T) {
 		}
 
 		created := store.createCalls[0]
-		if !boolVal(created.IsAdmin) || !boolVal(created.IsActive) || !boolVal(created.IsPremium) {
+		if !created.IsAdmin || !created.IsActive || !created.IsPremium {
 			t.Fatal("expected bootstrap privileges")
 		}
 		if !auth.CheckPassword("secure-password", created.Password) {
@@ -85,7 +94,7 @@ func TestUserService_Register(t *testing.T) {
 		}
 
 		created := store.createCalls[0]
-		if boolVal(created.IsAdmin) || boolVal(created.IsActive) || boolVal(created.IsPremium) {
+		if created.IsAdmin || created.IsActive || created.IsPremium {
 			t.Fatal("expected default privileges")
 		}
 	})
@@ -202,6 +211,96 @@ func TestUserService_Register(t *testing.T) {
 	})
 }
 
-func boolVal(v *bool) bool {
-	return v != nil && *v
+func TestUserService_Login(t *testing.T) {
+	t.Run("returns user for valid credentials", func(t *testing.T) {
+		hash, err := auth.HashPassword("secure-password")
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := &mockUserStore{
+			getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+				return db.User{
+					Email:    email,
+					Password: hash,
+					IsActive: true,
+				}, nil
+			},
+		}
+		svc := NewUserService(store, nil)
+
+		user, err := svc.Login(context.Background(), LoginInput{
+			Email:    "Ada@Example.COM",
+			Password: "secure-password",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if user.Email != "ada@example.com" {
+			t.Fatalf("email = %q", user.Email)
+		}
+	})
+
+	t.Run("rejects missing fields", func(t *testing.T) {
+		svc := NewUserService(&mockUserStore{}, nil)
+		_, err := svc.Login(context.Background(), LoginInput{Email: "a@b.com"})
+		if !errors.Is(err, ErrMissingFields) {
+			t.Fatalf("err = %v, want ErrMissingFields", err)
+		}
+	})
+
+	t.Run("rejects unknown email", func(t *testing.T) {
+		store := &mockUserStore{
+			getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+				return db.User{}, pgx.ErrNoRows
+			},
+		}
+		svc := NewUserService(store, nil)
+		_, err := svc.Login(context.Background(), LoginInput{
+			Email:    "missing@example.com",
+			Password: "secure-password",
+		})
+		if !errors.Is(err, ErrInvalidEmailOrPassword) {
+			t.Fatalf("err = %v, want ErrInvalidEmailOrPassword", err)
+		}
+	})
+
+	t.Run("rejects wrong password", func(t *testing.T) {
+		hash, err := auth.HashPassword("secure-password")
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := &mockUserStore{
+			getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+				return db.User{Email: email, Password: hash, IsActive: true}, nil
+			},
+		}
+		svc := NewUserService(store, nil)
+		_, err = svc.Login(context.Background(), LoginInput{
+			Email:    "ada@example.com",
+			Password: "wrong-password",
+		})
+		if !errors.Is(err, ErrInvalidEmailOrPassword) {
+			t.Fatalf("err = %v, want ErrInvalidEmailOrPassword", err)
+		}
+	})
+
+	t.Run("rejects inactive user", func(t *testing.T) {
+		hash, err := auth.HashPassword("secure-password")
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := &mockUserStore{
+			getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+				return db.User{Email: email, Password: hash, IsActive: false}, nil
+			},
+		}
+		svc := NewUserService(store, nil)
+		_, err = svc.Login(context.Background(), LoginInput{
+			Email:    "ada@example.com",
+			Password: "secure-password",
+		})
+		if !errors.Is(err, ErrUserInactive) {
+			t.Fatalf("err = %v, want ErrUserInactive", err)
+		}
+	})
 }

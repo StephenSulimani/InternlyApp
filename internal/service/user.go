@@ -6,6 +6,7 @@ import (
 	"net/mail"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/db"
@@ -14,13 +15,16 @@ import (
 const MinPasswordLength = 8
 
 var (
-	ErrMissingFields = errors.New("missing required fields")
-	ErrInvalidEmail  = errors.New("invalid email")
-	ErrWeakPassword  = errors.New("weak password")
-	ErrUserExists    = errors.New("user already exists")
-	ErrCountUsers    = errors.New("count users")
-	ErrHashPassword  = errors.New("hash password")
-	ErrCreateUser    = errors.New("create user")
+	ErrMissingFields          = errors.New("missing required fields")
+	ErrInvalidEmail           = errors.New("invalid email")
+	ErrWeakPassword           = errors.New("weak password")
+	ErrUserExists             = errors.New("user already exists")
+	ErrCountUsers             = errors.New("count users")
+	ErrHashPassword           = errors.New("hash password")
+	ErrCreateUser             = errors.New("create user")
+	ErrGetUser                = errors.New("get user")
+	ErrInvalidEmailOrPassword = errors.New("invalid email or password")
+	ErrUserInactive           = errors.New("user inactive")
 )
 
 type PasswordHasher func(password string) (string, error)
@@ -79,9 +83,9 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) error {
 		LastName:  input.LastName,
 		Email:     input.Email,
 		Password:  hashedPassword,
-		IsActive:  &isActive,
-		IsAdmin:   &isAdmin,
-		IsPremium: &isPremium,
+		IsActive:  isActive,
+		IsAdmin:   isAdmin,
+		IsPremium: isPremium,
 	})
 	if err != nil {
 		var pgError *pgconn.PgError
@@ -92,6 +96,37 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) error {
 	}
 
 	return nil
+}
+
+type LoginInput struct {
+	Email    string
+	Password string
+}
+
+func (s *UserService) Login(ctx context.Context, input LoginInput) (db.User, error) {
+	input.Email = normalizeEmail(input.Email)
+
+	if input.Email == "" || input.Password == "" {
+		return db.User{}, ErrMissingFields
+	}
+
+	user, err := s.store.GetUserByEmail(ctx, input.Email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.User{}, ErrInvalidEmailOrPassword
+		}
+		return db.User{}, errors.Join(ErrGetUser, err)
+	}
+
+	if !auth.CheckPassword(input.Password, user.Password) {
+		return db.User{}, ErrInvalidEmailOrPassword
+	}
+
+	if !user.IsActive {
+		return db.User{}, ErrUserInactive
+	}
+
+	return user, nil
 }
 
 func normalizeEmail(email string) string {

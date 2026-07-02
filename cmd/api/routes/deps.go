@@ -4,14 +4,16 @@ import (
 	"net/http"
 
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
+	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
 )
 
 type requestDeps struct {
-	body  []byte
-	log   *zap.SugaredLogger
-	users *service.UserService
+	body   []byte
+	log    *zap.SugaredLogger
+	users  *service.UserService
+	tokens *auth.TokenIssuer
 }
 
 func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool) {
@@ -30,9 +32,15 @@ func depsFromRequest(w http.ResponseWriter, r *http.Request) (*requestDeps, bool
 		return nil, false
 	}
 
+	tokens, ok := tokenIssuerFromContext(r.Context())
+	if !ok {
+		return nil, false
+	}
+
 	return &requestDeps{
-		body:  body,
-		log:   log,
-		users: users,
+		body:   body,
+		log:    log,
+		users:  users,
+		tokens: tokens,
 	}, true
 }
