@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { clearSession, getToken } from "./session";
 
 export type UserProfile = {
   id: string;
@@ -22,8 +23,6 @@ export type LoginInput = {
   password: string;
 };
 
-const TOKEN_KEY = "internly_token";
-
 export async function login(input: LoginInput): Promise<LoginResponse> {
   return apiClient<LoginResponse>("/login", {
     method: "POST",
@@ -32,14 +31,4 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
   });
 }
 
-export function saveToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
+export { clearSession, getToken };

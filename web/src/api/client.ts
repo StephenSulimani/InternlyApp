@@ -1,3 +1,5 @@
+import { getToken } from "./session";
+
 export class ApiError extends Error {
   status: number;
   body?: unknown;
@@ -10,18 +12,25 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 export async function apiClient<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+
+  const token = getToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: {
-      Accept: "application/json",
-      ...init?.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {

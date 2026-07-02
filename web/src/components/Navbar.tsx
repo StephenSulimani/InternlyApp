@@ -1,8 +1,16 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../providers/AuthProvider";
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, signOut } = useAuth();
+
+  function handleSignOut() {
+    signOut();
+    navigate("/");
+  }
 
   return (
     <header className={styles.header}>
@@ -23,12 +31,21 @@ export default function Navbar() {
           >
             About
           </Link>
-          <Link
-            to="/login"
-            className={`${styles.cta} ${pathname === "/login" ? styles.linkActive : ""}`}
-          >
-            Sign in
-          </Link>
+          {isAuthenticated && user ? (
+            <>
+              <span className={styles.userLabel}>{user.first_name}</span>
+              <button type="button" className={styles.cta} onClick={handleSignOut}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className={`${styles.cta} ${pathname === "/login" ? styles.linkActive : ""}`}
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </nav>
     </header>

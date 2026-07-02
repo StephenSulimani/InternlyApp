@@ -7,24 +7,25 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/stephensulimani/internlyapp/internal/db"
 )
 
-// SetupPostgres connects to Postgres for API integration tests.
+// SetupPostgres connects to Postgres for database-backed tests.
 // DSN resolution order:
-//  1. TEST_DATABASE_URL
-//  2. .env at the repository root (POSTGRES_* or TEST_DATABASE_URL)
-//  3. POSTGRES_* already present in the environment
+//  1. TEST_DATABASE_URL in the environment
+//  2. TEST_DATABASE_URL in .env at the repository root
 //
-// Skips the test when no DSN can be resolved (e.g. CI without a database).
+// Skips the test when TEST_DATABASE_URL is unset so plain `go test` never
+// touches the development database via POSTGRES_* credentials.
 func SetupPostgres(t *testing.T) (*pgxpool.Pool, func()) {
 	t.Helper()
 
 	dsn := resolveTestDSN(t)
 	if dsn == "" {
-		t.Skip("no test database configured; set TEST_DATABASE_URL or POSTGRES_* in .env")
+		t.Skip("no test database configured; set TEST_DATABASE_URL in .env or the environment")
 	}
 
 	root := RepoRoot(t)
@@ -46,6 +47,36 @@ func SetupPostgres(t *testing.T) (*pgxpool.Pool, func()) {
 	return pool, cleanup
 }
 
+// WithTestTx runs fn inside a database transaction that is always rolled back.
+// Use this for any test that inserts or updates rows so nothing persists.
+func WithTestTx(t *testing.T, pool *pgxpool.Pool, fn func(ctx context.Context, tx pgx.Tx, queries *db.Queries)) {
+	t.Helper()
+
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin transaction: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := tx.Rollback(ctx); err != nil && err != pgx.ErrTxClosed {
+			t.Errorf("rollback transaction: %v", err)
+		}
+	})
+
+	fn(ctx, tx, db.New(tx))
+}
+
+// TruncateUsersTx clears users inside the current test transaction.
+// Committed rows reappear after rollback, so dev data is never permanently removed.
+func TruncateUsersTx(t *testing.T, ctx context.Context, tx pgx.Tx) {
+	t.Helper()
+
+	if _, err := tx.Exec(ctx, "TRUNCATE users RESTART IDENTITY CASCADE"); err != nil {
+		t.Fatalf("truncate users in test transaction: %v", err)
+	}
+}
+
 func resolveTestDSN(t *testing.T) string {
 	t.Helper()
 
@@ -56,30 +87,7 @@ func resolveTestDSN(t *testing.T) string {
 	root := RepoRoot(t)
 	_ = godotenv.Load(filepath.Join(root, ".env"))
 
-	if dsn := os.Getenv("TEST_DATABASE_URL"); dsn != "" {
-		return dsn
-	}
-
-	user := os.Getenv("POSTGRES_USER")
-	pass := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-
-	if host == "" {
-		host = "localhost"
-	}
-	if port == "" {
-		port = "5432"
-	}
-	if user == "" || dbName == "" {
-		return ""
-	}
-
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		user, pass, host, port, dbName,
-	)
+	return os.Getenv("TEST_DATABASE_URL")
 }
 
 func InstallRejectUserInsertTrigger(t *testing.T, pool *pgxpool.Pool) {

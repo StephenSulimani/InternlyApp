@@ -211,6 +211,46 @@ func TestUserService_Register(t *testing.T) {
 	})
 }
 
+func TestUserService_SeedAdmin(t *testing.T) {
+	t.Run("creates active admin regardless of user count", func(t *testing.T) {
+		store := &mockUserStore{count: 5}
+		svc := NewUserService(store, nil)
+
+		_, err := svc.SeedAdmin(context.Background(), RegisterInput{
+			FirstName: "Stephen",
+			LastName:  "Sulimani",
+			Email:     "stephen@example.com",
+			Password:  "password1",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(store.createCalls) != 1 {
+			t.Fatalf("createCalls = %d, want 1", len(store.createCalls))
+		}
+		if !store.createCalls[0].IsAdmin || !store.createCalls[0].IsActive || !store.createCalls[0].IsPremium {
+			t.Fatal("expected admin flags on create params")
+		}
+	})
+
+	t.Run("duplicate email", func(t *testing.T) {
+		store := &mockUserStore{
+			createErr: &pgconn.PgError{Code: "23505"},
+		}
+		svc := NewUserService(store, nil)
+
+		_, err := svc.SeedAdmin(context.Background(), RegisterInput{
+			FirstName: "Stephen",
+			LastName:  "Sulimani",
+			Email:     "stephen@example.com",
+			Password:  "password1",
+		})
+		if !errors.Is(err, ErrUserExists) {
+			t.Fatalf("err = %v, want ErrUserExists", err)
+		}
+	})
+}
+
 func TestUserService_Login(t *testing.T) {
 	t.Run("returns user for valid credentials", func(t *testing.T) {
 		hash, err := auth.HashPassword("secure-password")

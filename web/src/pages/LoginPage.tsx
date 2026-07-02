@@ -1,17 +1,25 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PageShell from "../components/PageShell";
 import { useLogin } from "../hooks/useLogin";
+import { useAuth } from "../providers/AuthProvider";
 import styles from "./LoginPage.module.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const login = useLogin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

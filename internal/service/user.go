@@ -98,6 +98,48 @@ func (s *UserService) Register(ctx context.Context, input RegisterInput) error {
 	return nil
 }
 
+// SeedAdmin creates an active admin user with the given credentials.
+// Intended for local/dev bootstrap via cmd/seed-user; bypasses first-user counting.
+func (s *UserService) SeedAdmin(ctx context.Context, input RegisterInput) (db.User, error) {
+	input.FirstName = strings.TrimSpace(input.FirstName)
+	input.LastName = strings.TrimSpace(input.LastName)
+	input.Email = normalizeEmail(input.Email)
+
+	if input.FirstName == "" || input.LastName == "" || input.Email == "" || input.Password == "" {
+		return db.User{}, ErrMissingFields
+	}
+	if !isValidEmail(input.Email) {
+		return db.User{}, ErrInvalidEmail
+	}
+	if len(input.Password) < MinPasswordLength {
+		return db.User{}, ErrWeakPassword
+	}
+
+	hashedPassword, err := s.hasher(input.Password)
+	if err != nil {
+		return db.User{}, errors.Join(ErrHashPassword, err)
+	}
+
+	user, err := s.store.CreateUser(ctx, db.CreateUserParams{
+		FirstName: input.FirstName,
+		LastName:  input.LastName,
+		Email:     input.Email,
+		Password:  hashedPassword,
+		IsActive:  true,
+		IsAdmin:   true,
+		IsPremium: true,
+	})
+	if err != nil {
+		var pgError *pgconn.PgError
+		if errors.As(err, &pgError) && pgError.Code == "23505" {
+			return db.User{}, ErrUserExists
+		}
+		return db.User{}, errors.Join(ErrCreateUser, err)
+	}
+
+	return user, nil
+}
+
 type LoginInput struct {
 	Email    string
 	Password string
