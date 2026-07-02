@@ -7,20 +7,21 @@ export type ApiResponse<T = unknown> = {
   data?: T;
 };
 
-/** Job listing shape — align with internal/db.Job when integrating. */
+/** Job listing shape — aligned with cmd/api/types.JobListing. */
 export type Job = {
   id: string;
   company: string;
-  roleTitle: string;
-  location: string;
-  jobType: string;
-  applicationLink: string;
-  postedAt?: string;
+  role_title: string;
+  locations: string[];
+  job_type: string;
+  application_link: string;
+  first_seen?: string;
+  source_name: string;
 };
 
-/** GET /jobs (not implemented on API yet). */
-export async function fetchJobs(): Promise<Job[]> {
-  const res = await apiClient<ApiResponse<Job[]>>("/jobs");
+/** GET /jobs */
+export async function fetchJobs(limit = 50): Promise<Job[]> {
+  const res = await apiClient<ApiResponse<Job[]>>(`/jobs?limit=${limit}`);
   return res.data ?? [];
 }
 

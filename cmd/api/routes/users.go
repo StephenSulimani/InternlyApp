@@ -12,12 +12,15 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func UserRouter() *mux.Router {
+func APIRouter() *mux.Router {
 	router := mux.NewRouter()
 	router.Use(middleware.RateLimit(rate.Every(time.Minute/5), 5))
-	router.Use(middleware.EnsureJSONBody)
-	router.HandleFunc("/register", RegisterUser).Methods("POST")
-	router.HandleFunc("/login", LoginUser).Methods("POST")
+	router.HandleFunc("/jobs", ListJobs).Methods("GET")
+
+	jsonRouter := router.NewRoute().Subrouter()
+	jsonRouter.Use(middleware.EnsureJSONBody)
+	jsonRouter.HandleFunc("/register", RegisterUser).Methods("POST")
+	jsonRouter.HandleFunc("/login", LoginUser).Methods("POST")
 	return router
 }
 

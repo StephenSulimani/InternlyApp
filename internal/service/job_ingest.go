@@ -22,10 +22,10 @@ type IngestResult struct {
 }
 
 type JobIngestService struct {
-	store JobStore
+	store JobWriter
 }
 
-func NewJobIngestService(store JobStore) *JobIngestService {
+func NewJobIngestService(store JobWriter) *JobIngestService {
 	return &JobIngestService{store: store}
 }
 

@@ -50,3 +50,14 @@ func writeLoginError(w http.ResponseWriter, log *zap.SugaredLogger, err error) {
 		types.WriteError(w, http.StatusInternalServerError, "Error logging in")
 	}
 }
+
+func writeJobsError(w http.ResponseWriter, log *zap.SugaredLogger, err error) {
+	switch {
+	case errors.Is(err, service.ErrGetJobs):
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error querying the database")
+	default:
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error retrieving jobs")
+	}
+}

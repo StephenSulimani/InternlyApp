@@ -10,23 +10,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type mockJobStore struct {
-	createErr   error
-	createUser  func(ctx context.Context, arg db.CreateJobParams) (db.Job, error)
-	createCalls []db.CreateJobParams
-}
-
-func (m *mockJobStore) CreateJob(ctx context.Context, arg db.CreateJobParams) (db.Job, error) {
-	m.createCalls = append(m.createCalls, arg)
-	if m.createUser != nil {
-		return m.createUser(ctx, arg)
-	}
-	if m.createErr != nil {
-		return db.Job{}, m.createErr
-	}
-	return db.Job{}, nil
-}
-
 type stubJobSource struct {
 	jobs []db.Job
 	err  error
@@ -59,7 +42,7 @@ func TestJobIngestService_Ingest(t *testing.T) {
 	t.Run("skips duplicate jobs", func(t *testing.T) {
 		attempts := 0
 		store := &mockJobStore{
-			createUser: func(ctx context.Context, arg db.CreateJobParams) (db.Job, error) {
+			createJob: func(ctx context.Context, arg db.CreateJobParams) (db.Job, error) {
 				attempts++
 				if attempts == 1 {
 					return db.Job{}, nil

@@ -17,7 +17,9 @@ import (
 )
 
 func NewHandler(log *zap.SugaredLogger, pool *pgxpool.Pool) http.Handler {
-	users := service.NewUserService(db.New(pool), nil)
+	queries := db.New(pool)
+	users := service.NewUserService(queries, nil)
+	jobs := service.NewJobService(queries)
 
 	jwtSecret := utils.GetEnv("JWT_SECRET", "")
 	if jwtSecret == "" {
@@ -34,7 +36,8 @@ func NewHandler(log *zap.SugaredLogger, pool *pgxpool.Pool) http.Handler {
 	router.Use(middleware.DatabaseMiddleware(pool))
 	router.Use(middleware.LoggerContext(log))
 	router.Use(routes.UserServiceMiddleware(users))
+	router.Use(routes.JobServiceMiddleware(jobs))
 	router.Use(routes.TokenIssuerMiddleware(tokens))
-	router.PathPrefix("/").Handler(routes.UserRouter())
+	router.PathPrefix("/").Handler(routes.APIRouter())
 	return router
 }

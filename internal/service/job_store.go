@@ -6,6 +6,15 @@ import (
 	"github.com/stephensulimani/internlyapp/internal/db"
 )
 
-type JobStore interface {
+type JobWriter interface {
 	CreateJob(ctx context.Context, arg db.CreateJobParams) (db.Job, error)
+}
+
+type JobReader interface {
+	GetJobsLimit(ctx context.Context, limit int32) ([]db.Job, error)
+}
+
+type JobStore interface {
+	JobWriter
+	JobReader
 }
