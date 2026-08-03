@@ -50,3 +50,31 @@ func TestWriteJobsList(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 }
+
+func TestJobStatsFrom(t *testing.T) {
+	var lastUpdated pgtype.Timestamptz
+	if err := lastUpdated.Scan(time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+
+	stats := JobStatsFrom(db.GetJobsStatsRow{
+		TotalJobs:      10,
+		AddedThisWeek:  2,
+		TotalCompanies: 5,
+		LastUpdated:    lastUpdated,
+	})
+	if stats.TotalJobs != 10 || stats.AddedThisWeek != 2 || stats.TotalCompanies != 5 {
+		t.Fatalf("stats = %+v", stats)
+	}
+	if stats.LastUpdated != "2026-08-03T12:00:00Z" {
+		t.Fatalf("last_updated = %q", stats.LastUpdated)
+	}
+}
+
+func TestWriteJobsStats(t *testing.T) {
+	rec := httptest.NewRecorder()
+	WriteJobsStats(rec, JobStats{TotalJobs: 1, AddedThisWeek: 1, TotalCompanies: 1})
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+}

@@ -71,6 +71,46 @@ func WriteJobsList(w http.ResponseWriter, jobs []JobListing) {
 	_, _ = w.Write(body)
 }
 
+type JobStats struct {
+	TotalJobs      int64  `json:"total_jobs"`
+	AddedThisWeek  int64  `json:"added_this_week"`
+	TotalCompanies int64  `json:"total_companies"`
+	LastUpdated    string `json:"last_updated,omitempty"`
+}
+
+type jobsStatsResponse struct {
+	Success bool     `json:"success"`
+	Message string   `json:"message"`
+	Data    JobStats `json:"data"`
+}
+
+func JobStatsFrom(row db.GetJobsStatsRow) JobStats {
+	stats := JobStats{
+		TotalJobs:      row.TotalJobs,
+		AddedThisWeek:  row.AddedThisWeek,
+		TotalCompanies: row.TotalCompanies,
+	}
+	if row.LastUpdated.Valid {
+		stats.LastUpdated = row.LastUpdated.Time.UTC().Format(time.RFC3339)
+	}
+	return stats
+}
+
+func WriteJobsStats(w http.ResponseWriter, stats JobStats) {
+	body, err := json.Marshal(jobsStatsResponse{
+		Success: true,
+		Message: "Job stats retrieved",
+		Data:    stats,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
 func derefString(value *string) string {
 	if value == nil {
 		return ""

@@ -112,6 +112,40 @@ func TestJobService_List(t *testing.T) {
 	})
 }
 
+func TestJobService_Stats(t *testing.T) {
+	t.Run("returns stats from store", func(t *testing.T) {
+		store := &mockJobStore{
+			stats: db.GetJobsStatsRow{
+				TotalJobs:      12,
+				AddedThisWeek:  3,
+				TotalCompanies: 8,
+			},
+		}
+		svc := NewJobService(store)
+
+		stats, err := svc.Stats(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stats.TotalJobs != 12 || stats.AddedThisWeek != 3 || stats.TotalCompanies != 8 {
+			t.Fatalf("stats = %+v", stats)
+		}
+		if store.statsCalls != 1 {
+			t.Fatalf("statsCalls = %d, want 1", store.statsCalls)
+		}
+	})
+
+	t.Run("store error", func(t *testing.T) {
+		store := &mockJobStore{statsErr: errors.New("db down")}
+		svc := NewJobService(store)
+
+		_, err := svc.Stats(context.Background())
+		if !errors.Is(err, ErrGetJobsStats) {
+			t.Fatalf("err = %v, want ErrGetJobsStats", err)
+		}
+	})
+}
+
 func TestNormalizeJobsLimit(t *testing.T) {
 	t.Run("defaults invalid values", func(t *testing.T) {
 		limit, err := NormalizeJobsLimit(0)

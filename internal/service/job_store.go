@@ -12,6 +12,7 @@ type JobWriter interface {
 
 type JobReader interface {
 	GetJobsLimit(ctx context.Context, limit int32) ([]db.Job, error)
+	GetJobsStats(ctx context.Context) (db.GetJobsStatsRow, error)
 }
 
 type JobStore interface {

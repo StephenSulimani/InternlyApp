@@ -13,6 +13,10 @@ type mockJobStore struct {
 	getJobsCalls int
 	getJobsLimit func(ctx context.Context, limit int32) ([]db.Job, error)
 
+	stats        db.GetJobsStatsRow
+	statsErr     error
+	getJobsStats func(ctx context.Context) (db.GetJobsStatsRow, error)
+
 	createErr error
 }
 
@@ -35,6 +39,16 @@ func (m *mockJobStore) GetJobsLimit(ctx context.Context, limit int32) ([]db.Job,
 	}
 
 	return sliceJobs(m.jobs, limit), nil
+}
+
+func (m *mockJobStore) GetJobsStats(ctx context.Context) (db.GetJobsStatsRow, error) {
+	if m.getJobsStats != nil {
+		return m.getJobsStats(ctx)
+	}
+	if m.statsErr != nil {
+		return db.GetJobsStatsRow{}, m.statsErr
+	}
+	return m.stats, nil
 }
 
 func sliceJobs(jobs []db.Job, limit int32) []db.Job {

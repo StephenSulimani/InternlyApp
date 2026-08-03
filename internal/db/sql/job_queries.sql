@@ -22,3 +22,10 @@ ORDER BY
     first_seen DESC
 LIMIT $1;
 
+-- name: GetJobsStats :one
+SELECT
+    (SELECT COUNT(*)::bigint FROM jobs) AS total_jobs,
+    (SELECT COUNT(*)::bigint FROM jobs WHERE first_seen >= date_trunc('week', NOW())) AS added_this_week,
+    (SELECT COUNT(DISTINCT company)::bigint FROM jobs) AS total_companies,
+    (SELECT first_seen FROM jobs ORDER BY first_seen DESC LIMIT 1) AS last_updated;
+

@@ -56,6 +56,9 @@ func writeJobsError(w http.ResponseWriter, log *zap.SugaredLogger, err error) {
 	case errors.Is(err, service.ErrGetJobs):
 		log.Error(err)
 		types.WriteError(w, http.StatusInternalServerError, "Error querying the database")
+	case errors.Is(err, service.ErrGetJobsStats):
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error querying the database")
 	default:
 		log.Error(err)
 		types.WriteError(w, http.StatusInternalServerError, "Error retrieving jobs")

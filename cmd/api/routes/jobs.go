@@ -50,3 +50,26 @@ func jobsLimitFromRequest(r *http.Request) (int, error) {
 
 	return service.NormalizeJobsLimit(parsed)
 }
+
+func JobStats(w http.ResponseWriter, r *http.Request) {
+	log, ok := middleware.LoggerFromContext(r.Context())
+	if !ok {
+		types.WriteError(w, http.StatusInternalServerError, "Error getting request dependencies")
+		return
+	}
+
+	jobsService, ok := jobServiceFromContext(r.Context())
+	if !ok {
+		types.WriteError(w, http.StatusInternalServerError, "Error getting request dependencies")
+		return
+	}
+
+	stats, err := jobsService.Stats(r.Context())
+	if err != nil {
+		writeJobsError(w, log, err)
+		return
+	}
+
+	types.WriteJobsStats(w, types.JobStatsFrom(stats))
+}
+

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -110,6 +111,58 @@ func TestListJobsRoute_errors(t *testing.T) {
 	})
 }
 
+func TestJobStatsRoute(t *testing.T) {
+	var lastUpdated pgtype.Timestamptz
+	if err := lastUpdated.Scan(time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+
+	store := &mockJobStore{
+		stats: db.GetJobsStatsRow{
+			TotalJobs:      100,
+			AddedThisWeek:  7,
+			TotalCompanies: 40,
+			LastUpdated:    lastUpdated,
+		},
+	}
+	handler := testJobsHandler(store)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/jobs/stats", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var res struct {
+		Success bool `json:"success"`
+		Data    struct {
+			TotalJobs      int64  `json:"total_jobs"`
+			AddedThisWeek  int64  `json:"added_this_week"`
+			TotalCompanies int64  `json:"total_companies"`
+			LastUpdated    string `json:"last_updated"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.Success || res.Data.TotalJobs != 100 || res.Data.AddedThisWeek != 7 || res.Data.TotalCompanies != 40 {
+		t.Fatalf("response = %+v", res)
+	}
+	if res.Data.LastUpdated == "" {
+		t.Fatal("expected last_updated")
+	}
+}
+
+func TestJobStatsRoute_databaseError(t *testing.T) {
+	handler := testJobsHandler(&mockJobStore{statsErr: errors.New("db down")})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/jobs/stats", nil)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusInternalServerError, "Error querying the database")
+}
+
 func testJobsHandler(store service.JobReader) http.Handler {
 	log := zap.NewNop().Sugar()
 	jobs := service.NewJobService(store)
@@ -117,5 +170,6 @@ func testJobsHandler(store service.JobReader) http.Handler {
 	router.Use(middleware.LoggerContext(log))
 	router.Use(JobServiceMiddleware(jobs))
 	router.HandleFunc("/jobs", ListJobs).Methods("GET")
+	router.HandleFunc("/jobs/stats", JobStats).Methods("GET")
 	return router
 }

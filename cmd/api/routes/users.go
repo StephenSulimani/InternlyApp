@@ -16,6 +16,7 @@ func APIRouter() *mux.Router {
 	router := mux.NewRouter()
 	router.Use(middleware.RateLimit(rate.Every(time.Minute/5), 5))
 	router.HandleFunc("/jobs", ListJobs).Methods("GET")
+	router.HandleFunc("/jobs/stats", JobStats).Methods("GET")
 
 	jsonRouter := router.NewRoute().Subrouter()
 	jsonRouter.Use(middleware.EnsureJSONBody)

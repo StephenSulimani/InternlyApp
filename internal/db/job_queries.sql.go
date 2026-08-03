@@ -142,3 +142,30 @@ func (q *Queries) GetJobsLimit(ctx context.Context, limit int32) ([]Job, error) 
 	}
 	return items, nil
 }
+
+const getJobsStats = `-- name: GetJobsStats :one
+SELECT
+    (SELECT COUNT(*)::bigint FROM jobs) AS total_jobs,
+    (SELECT COUNT(*)::bigint FROM jobs WHERE first_seen >= date_trunc('week', NOW())) AS added_this_week,
+    (SELECT COUNT(DISTINCT company)::bigint FROM jobs) AS total_companies,
+    (SELECT first_seen FROM jobs ORDER BY first_seen DESC LIMIT 1) AS last_updated
+`
+
+type GetJobsStatsRow struct {
+	TotalJobs      int64              `json:"total_jobs"`
+	AddedThisWeek  int64              `json:"added_this_week"`
+	TotalCompanies int64              `json:"total_companies"`
+	LastUpdated    pgtype.Timestamptz `json:"last_updated"`
+}
+
+func (q *Queries) GetJobsStats(ctx context.Context) (GetJobsStatsRow, error) {
+	row := q.db.QueryRow(ctx, getJobsStats)
+	var i GetJobsStatsRow
+	err := row.Scan(
+		&i.TotalJobs,
+		&i.AddedThisWeek,
+		&i.TotalCompanies,
+		&i.LastUpdated,
+	)
+	return i, err
+}
