@@ -1,4 +1,4 @@
-import { getToken } from "./session";
+import { getToken, clearSession } from "./session";
 
 export class ApiError extends Error {
   status: number;
@@ -34,6 +34,14 @@ export async function apiClient<T>(
   });
 
   if (!res.ok) {
+    if (
+      res.status === 401 &&
+      path !== "/login" &&
+      path !== "/register"
+    ) {
+      clearSession();
+    }
+
     let body: unknown;
     let message = res.statusText || "Request failed";
     try {

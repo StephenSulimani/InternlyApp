@@ -171,6 +171,28 @@ func (s *UserService) Login(ctx context.Context, input LoginInput) (db.User, err
 	return user, nil
 }
 
+// GetActiveByEmail loads a user and requires they are active (authorization).
+func (s *UserService) GetActiveByEmail(ctx context.Context, email string) (db.User, error) {
+	email = normalizeEmail(email)
+	if email == "" {
+		return db.User{}, ErrMissingFields
+	}
+
+	user, err := s.store.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.User{}, ErrInvalidEmailOrPassword
+		}
+		return db.User{}, errors.Join(ErrGetUser, err)
+	}
+
+	if !user.IsActive {
+		return db.User{}, ErrUserInactive
+	}
+
+	return user, nil
+}
+
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }

@@ -344,3 +344,34 @@ func TestUserService_Login(t *testing.T) {
 		}
 	})
 }
+
+func TestUserService_GetActiveByEmail(t *testing.T) {
+	t.Run("returns active user", func(t *testing.T) {
+		store := &mockUserStore{
+			getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+				return db.User{Email: email, IsActive: true}, nil
+			},
+		}
+		svc := NewUserService(store, nil)
+		user, err := svc.GetActiveByEmail(context.Background(), "Ada@Example.COM")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if user.Email != "ada@example.com" {
+			t.Fatalf("email = %q", user.Email)
+		}
+	})
+
+	t.Run("rejects inactive user", func(t *testing.T) {
+		store := &mockUserStore{
+			getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+				return db.User{Email: email, IsActive: false}, nil
+			},
+		}
+		svc := NewUserService(store, nil)
+		_, err := svc.GetActiveByEmail(context.Background(), "ada@example.com")
+		if !errors.Is(err, ErrUserInactive) {
+			t.Fatalf("err = %v, want ErrUserInactive", err)
+		}
+	})
+}

@@ -69,6 +69,13 @@
   background: var(--bg-raised);
 }
 
+.empty {
+  margin: 0;
+  padding: 2rem 1.75rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
 @media (max-width: 768px) {
   .catalogHead {
     display: none;

@@ -8,13 +8,13 @@ type JobListFilters = {
 };
 
 /**
- * List jobs from the API. Disabled until VITE_ENABLE_API=true and the backend
- * exposes GET /jobs. The homepage still uses mockListings for now.
+ * List jobs from the API. Disabled until VITE_ENABLE_API=true.
+ * The homepage uses public /board/preview via useBoardPreview.
  */
 export function useJobs(filters?: JobListFilters) {
   return useQuery({
     queryKey: queryKeys.jobs.list(filters),
-    queryFn: fetchJobs,
+    queryFn: () => fetchJobs(),
     enabled: import.meta.env.VITE_ENABLE_API === "true",
   });
 }

@@ -1,4 +1,4 @@
-import type { Listing } from "../data/mockListings";
+import type { Listing } from "../lib/listings";
 import styles from "./ListingCard.module.css";
 
 type Props = {

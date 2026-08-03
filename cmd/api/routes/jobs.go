@@ -73,3 +73,24 @@ func JobStats(w http.ResponseWriter, r *http.Request) {
 	types.WriteJobsStats(w, types.JobStatsFrom(stats))
 }
 
+func BoardPreview(w http.ResponseWriter, r *http.Request) {
+	log, ok := middleware.LoggerFromContext(r.Context())
+	if !ok {
+		types.WriteError(w, http.StatusInternalServerError, "Error getting request dependencies")
+		return
+	}
+
+	jobsService, ok := jobServiceFromContext(r.Context())
+	if !ok {
+		types.WriteError(w, http.StatusInternalServerError, "Error getting request dependencies")
+		return
+	}
+
+	jobs, err := jobsService.List(r.Context(), 5)
+	if err != nil {
+		writeJobsError(w, log, err)
+		return
+	}
+
+	types.WriteJobsList(w, types.JobListingsFrom(jobs))
+}

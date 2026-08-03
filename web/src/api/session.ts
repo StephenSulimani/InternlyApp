@@ -28,6 +28,9 @@ export function getStoredUser(): UserProfile | null {
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("internly:session-cleared"));
+  }
 }
 
 export function loadSession(): { token: string; user: UserProfile } | null {

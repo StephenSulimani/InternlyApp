@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -29,6 +30,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     clearSession();
     setUser(null);
+  }, []);
+
+  useEffect(() => {
+    function onSessionCleared() {
+      setUser(null);
+    }
+    window.addEventListener("internly:session-cleared", onSessionCleared);
+    return () => window.removeEventListener("internly:session-cleared", onSessionCleared);
   }, []);
 
   const value = useMemo(

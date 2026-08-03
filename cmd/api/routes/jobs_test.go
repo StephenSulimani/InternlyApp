@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
+	"github.com/stephensulimani/internlyapp/internal/auth"
 	"github.com/stephensulimani/internlyapp/internal/db"
 	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
@@ -44,10 +46,10 @@ func TestListJobsRoute(t *testing.T) {
 			},
 		},
 	}
-	handler := testJobsHandler(store)
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/jobs?limit=10", nil)
+	req := authedRequest(http.MethodGet, "/jobs?limit=10", token)
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -66,35 +68,43 @@ func TestListJobsRoute(t *testing.T) {
 	}
 }
 
+func TestListJobsRoute_requiresAuth(t *testing.T) {
+	handler, _ := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusUnauthorized, "Authentication required")
+}
+
 func TestListJobsRoute_errors(t *testing.T) {
 	t.Run("invalid limit", func(t *testing.T) {
-		handler := testJobsHandler(&mockJobStore{})
+		handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/jobs?limit=abc", nil)
+		req := authedRequest(http.MethodGet, "/jobs?limit=abc", token)
 		handler.ServeHTTP(rec, req)
 		assertAPIError(t, rec, http.StatusBadRequest, "Invalid limit")
 	})
 
 	t.Run("limit above max", func(t *testing.T) {
-		handler := testJobsHandler(&mockJobStore{})
+		handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/jobs?limit=500", nil)
+		req := authedRequest(http.MethodGet, "/jobs?limit=500", token)
 		handler.ServeHTTP(rec, req)
 		assertAPIError(t, rec, http.StatusBadRequest, "Invalid limit")
 	})
 
 	t.Run("database error", func(t *testing.T) {
-		handler := testJobsHandler(&mockJobStore{getJobsErr: errors.New("db down")})
+		handler, token := testAuthedJobsHandler(t, &mockJobStore{getJobsErr: errors.New("db down")}, activeTestUser())
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
+		req := authedRequest(http.MethodGet, "/jobs", token)
 		handler.ServeHTTP(rec, req)
 		assertAPIError(t, rec, http.StatusInternalServerError, "Error querying the database")
 	})
 
 	t.Run("empty result", func(t *testing.T) {
-		handler := testJobsHandler(&mockJobStore{})
+		handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
+		req := authedRequest(http.MethodGet, "/jobs", token)
 		handler.ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusOK {
@@ -125,7 +135,7 @@ func TestJobStatsRoute(t *testing.T) {
 			LastUpdated:    lastUpdated,
 		},
 	}
-	handler := testJobsHandler(store)
+	handler, _ := testAuthedJobsHandler(t, store, activeTestUser())
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/jobs/stats", nil)
@@ -156,20 +166,91 @@ func TestJobStatsRoute(t *testing.T) {
 }
 
 func TestJobStatsRoute_databaseError(t *testing.T) {
-	handler := testJobsHandler(&mockJobStore{statsErr: errors.New("db down")})
+	handler, _ := testAuthedJobsHandler(t, &mockJobStore{statsErr: errors.New("db down")}, activeTestUser())
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/jobs/stats", nil)
 	handler.ServeHTTP(rec, req)
 	assertAPIError(t, rec, http.StatusInternalServerError, "Error querying the database")
 }
 
-func testJobsHandler(store service.JobReader) http.Handler {
+func TestBoardPreviewRoute_isPublic(t *testing.T) {
+	company := "Acme"
+	store := &mockJobStore{
+		jobs: []db.Job{
+			{Company: &company, ApplicationLink: "https://jobs.example.com/1"},
+		},
+	}
+	handler, _ := testAuthedJobsHandler(t, store, activeTestUser())
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/board/preview", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequireAuth_inactiveUser(t *testing.T) {
+	user := activeTestUser()
+	user.IsActive = false
+	handler, token := testAuthedJobsHandler(t, &mockJobStore{}, user)
+
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs", token)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusForbidden, "Account pending activation")
+}
+
+func activeTestUser() db.User {
+	var id pgtype.UUID
+	_ = id.Scan("550e8400-e29b-41d4-a716-446655440000")
+	return db.User{
+		ID:        id,
+		Email:     "ada@example.com",
+		FirstName: "Ada",
+		LastName:  "Lovelace",
+		IsActive:  true,
+	}
+}
+
+func authedRequest(method, path, token string) *http.Request {
+	req := httptest.NewRequest(method, path, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	return req
+}
+
+func testAuthedJobsHandler(t *testing.T, store service.JobReader, user db.User) (http.Handler, string) {
+	t.Helper()
+
 	log := zap.NewNop().Sugar()
+	tokens := auth.NewTokenIssuer("test-secret", time.Hour)
+	token, err := tokens.Issue(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	users := service.NewUserService(&mockUserStore{
+		getUserByEmail: func(ctx context.Context, email string) (db.User, error) {
+			u := user
+			u.Email = email
+			return u, nil
+		},
+	}, nil)
+
 	jobs := service.NewJobService(store)
 	router := mux.NewRouter()
 	router.Use(middleware.LoggerContext(log))
+	router.Use(UserServiceMiddleware(users))
 	router.Use(JobServiceMiddleware(jobs))
-	router.HandleFunc("/jobs", ListJobs).Methods("GET")
+	router.Use(TokenIssuerMiddleware(tokens))
+
+	router.HandleFunc("/board/preview", BoardPreview).Methods("GET")
 	router.HandleFunc("/jobs/stats", JobStats).Methods("GET")
-	return router
+
+	authed := router.NewRoute().Subrouter()
+	authed.Use(RequireAuth)
+	authed.HandleFunc("/jobs", ListJobs).Methods("GET")
+
+	return router, token
 }
