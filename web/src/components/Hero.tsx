@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { HeroStack } from "./StatusBar";
+import { useAuth } from "../providers/AuthProvider";
 import styles from "./Hero.module.css";
 
 export default function Hero() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <section className={styles.hero}>
       <div className={styles.layout}>
@@ -19,12 +22,14 @@ export default function Hero() {
           </p>
 
           <div className={styles.actions}>
-            <a href="#board" className={styles.primary}>
+            <Link to="/board" className={styles.primary}>
               Open the board
-            </a>
-            <Link to="/about#access" className={styles.secondary}>
-              Request access
             </Link>
+            {!isAuthenticated && (
+              <Link to="/about#access" className={styles.secondary}>
+                Request access
+              </Link>
+            )}
           </div>
 
           <p className={styles.marginalia}>Est. 2026</p>

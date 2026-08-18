@@ -17,6 +17,14 @@ type JobListing struct {
 	ApplicationLink string   `json:"application_link"`
 	FirstSeen       string   `json:"first_seen,omitempty"`
 	SourceName      string   `json:"source_name"`
+	Description     string   `json:"description,omitempty"`
+}
+
+type JobsPage struct {
+	Jobs   []JobListing `json:"jobs"`
+	Total  int64        `json:"total"`
+	Limit  int          `json:"limit"`
+	Offset int          `json:"offset"`
 }
 
 type jobsListResponse struct {
@@ -44,6 +52,8 @@ func JobListingFrom(j db.Job) JobListing {
 		listing.Locations = []string{}
 	}
 
+	listing.Description = derefString(j.Description)
+
 	return listing
 }
 
@@ -55,11 +65,72 @@ func JobListingsFrom(jobs []db.Job) []JobListing {
 	return listings
 }
 
+func JobsPageFrom(jobs []db.Job, total int64, limit, offset int) JobsPage {
+	return JobsPage{
+		Jobs:   JobListingsFrom(jobs),
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}
+}
+
 func WriteJobsList(w http.ResponseWriter, jobs []JobListing) {
 	body, err := json.Marshal(jobsListResponse{
 		Success: true,
 		Message: "Jobs retrieved",
 		Data:    jobs,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+type jobsPageResponse struct {
+	Success bool     `json:"success"`
+	Message string   `json:"message"`
+	Data    JobsPage `json:"data"`
+}
+
+func WriteJobsPage(w http.ResponseWriter, page JobsPage) {
+	if page.Jobs == nil {
+		page.Jobs = []JobListing{}
+	}
+
+	body, err := json.Marshal(jobsPageResponse{
+		Success: true,
+		Message: "Jobs retrieved",
+		Data:    page,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+type jobLocationsResponse struct {
+	Success bool     `json:"success"`
+	Message string   `json:"message"`
+	Data    []string `json:"data"`
+}
+
+func WriteJobLocations(w http.ResponseWriter, locations []string) {
+	if locations == nil {
+		locations = []string{}
+	}
+
+	body, err := json.Marshal(jobLocationsResponse{
+		Success: true,
+		Message: "Job locations retrieved",
+		Data:    locations,
 	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "internal error")

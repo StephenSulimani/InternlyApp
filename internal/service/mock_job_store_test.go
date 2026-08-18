@@ -13,6 +13,17 @@ type mockJobStore struct {
 	getJobsCalls int
 	getJobsLimit func(ctx context.Context, limit int32) ([]db.Job, error)
 
+	searchParams db.SearchJobsParams
+	searchCalls  int
+	searchErr    error
+	searchTotal  *int64
+	searchJobs   func(ctx context.Context, arg db.SearchJobsParams) ([]db.Job, error)
+	countJobs    func(ctx context.Context, arg db.CountJobsParams) (int64, error)
+	countErr     error
+	countCalls   int
+	locations    []string
+	locationsErr error
+
 	stats        db.GetJobsStatsRow
 	statsErr     error
 	statsCalls   int
@@ -59,6 +70,45 @@ func (m *mockJobStore) GetJobsLimit(ctx context.Context, limit int32) ([]db.Job,
 	return sliceJobs(m.jobs, limit), nil
 }
 
+func (m *mockJobStore) CountJobs(ctx context.Context, arg db.CountJobsParams) (int64, error) {
+	m.countCalls++
+	if m.countJobs != nil {
+		return m.countJobs(ctx, arg)
+	}
+	if m.countErr != nil {
+		return 0, m.countErr
+	}
+	if m.searchTotal != nil {
+		return *m.searchTotal, nil
+	}
+	return int64(len(m.jobs)), nil
+}
+
+func (m *mockJobStore) SearchJobs(ctx context.Context, arg db.SearchJobsParams) ([]db.Job, error) {
+	m.searchCalls++
+	m.searchParams = arg
+	m.limit = arg.RowLimit
+
+	if m.searchJobs != nil {
+		return m.searchJobs(ctx, arg)
+	}
+	if m.searchErr != nil {
+		return nil, m.searchErr
+	}
+
+	return sliceJobsPage(m.jobs, arg.RowLimit, arg.RowOffset), nil
+}
+
+func (m *mockJobStore) ListJobLocations(ctx context.Context) ([]string, error) {
+	if m.locationsErr != nil {
+		return nil, m.locationsErr
+	}
+	if m.locations != nil {
+		return m.locations, nil
+	}
+	return []string{}, nil
+}
+
 func (m *mockJobStore) GetJobsStats(ctx context.Context) (db.GetJobsStatsRow, error) {
 	m.statsCalls++
 
@@ -72,16 +122,29 @@ func (m *mockJobStore) GetJobsStats(ctx context.Context) (db.GetJobsStatsRow, er
 }
 
 func sliceJobs(jobs []db.Job, limit int32) []db.Job {
+	return sliceJobsPage(jobs, limit, 0)
+}
+
+func sliceJobsPage(jobs []db.Job, limit, offset int32) []db.Job {
 	if len(jobs) == 0 {
 		return []db.Job{}
 	}
-	if limit <= 0 || int(limit) >= len(jobs) {
-		out := make([]db.Job, len(jobs))
-		copy(out, jobs)
+	start := int(offset)
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(jobs) {
+		return []db.Job{}
+	}
+
+	rest := jobs[start:]
+	if limit <= 0 || int(limit) >= len(rest) {
+		out := make([]db.Job, len(rest))
+		copy(out, rest)
 		return out
 	}
 
 	out := make([]db.Job, limit)
-	copy(out, jobs[:limit])
+	copy(out, rest[:limit])
 	return out
 }

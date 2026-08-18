@@ -14,13 +14,16 @@ import (
 
 func APIRouter() *mux.Router {
 	router := mux.NewRouter()
-	router.Use(middleware.RateLimit(rate.Every(time.Minute/5), 5))
+	// Board browsing fires several GETs (jobs, locations, stats) plus
+	// search/sort/pagination. Keep this high enough for interactive use.
+	router.Use(middleware.RateLimit(5, 30))
 
 	// Public
 	router.HandleFunc("/board/preview", BoardPreview).Methods("GET")
 	router.HandleFunc("/jobs/stats", JobStats).Methods("GET")
 
 	jsonRouter := router.NewRoute().Subrouter()
+	jsonRouter.Use(middleware.RateLimit(rate.Every(time.Minute/5), 5))
 	jsonRouter.Use(middleware.EnsureJSONBody)
 	jsonRouter.HandleFunc("/register", RegisterUser).Methods("POST")
 	jsonRouter.HandleFunc("/login", LoginUser).Methods("POST")
@@ -29,6 +32,7 @@ func APIRouter() *mux.Router {
 	authed := router.NewRoute().Subrouter()
 	authed.Use(RequireAuth)
 	authed.HandleFunc("/jobs", ListJobs).Methods("GET")
+	authed.HandleFunc("/jobs/locations", JobLocations).Methods("GET")
 
 	return router
 }

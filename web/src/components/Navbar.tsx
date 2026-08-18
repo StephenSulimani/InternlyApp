@@ -20,8 +20,8 @@ export default function Navbar() {
         </Link>
         <div className={styles.links}>
           <Link
-            to="/#board"
-            className={`${styles.link} ${pathname === "/" ? "" : styles.linkMuted}`}
+            to="/board"
+            className={`${styles.link} ${pathname === "/board" ? styles.linkActive : ""}`}
           >
             Board
           </Link>

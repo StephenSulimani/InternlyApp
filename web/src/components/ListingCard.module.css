@@ -1,19 +1,33 @@
 .row {
   display: grid;
-  grid-template-columns: 2.5rem 1fr 9rem 6.5rem 5rem;
+  grid-template-columns: 2.5rem 1fr 9rem 6.5rem 5rem 2.5rem;
   gap: 1rem;
   align-items: center;
+  width: 100%;
   padding: 1rem 1.75rem 1rem 2rem;
+  text-align: left;
+  color: inherit;
   border-bottom: 1px solid var(--rule);
   transition: background 0.2s, box-shadow 0.2s;
   cursor: default;
 }
 
-.row:last-child {
+article:last-child .row {
   border-bottom: none;
 }
 
-.row:hover {
+.interactive {
+  cursor: pointer;
+}
+
+.row:hover,
+.selected {
+  background: var(--bg-card);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.interactive:focus-visible {
+  outline: none;
   background: var(--bg-card);
   box-shadow: inset 3px 0 0 var(--accent);
 }
@@ -41,6 +55,9 @@
 }
 
 .company {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-serif);
   font-size: 1.25rem;
   font-weight: 400;
@@ -48,6 +65,9 @@
 }
 
 .role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-top: 0.15rem;
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -59,9 +79,30 @@
   font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .type {
+  color: var(--accent);
+}
+
+.hint {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.interactive:hover .hint,
+.interactive:focus-visible .hint,
+.selected .hint {
+  opacity: 1;
   color: var(--accent);
 }
 
@@ -72,6 +113,15 @@
     grid-template-rows: auto auto;
     gap: 0.35rem 1rem;
     padding: 1.25rem 1.5rem 1.25rem 1.75rem;
+  }
+
+  .hint {
+    display: none;
+  }
+
+  .company,
+  .role {
+    white-space: normal;
   }
 
   .location,

@@ -43,10 +43,15 @@
 }
 
 .hint {
-  display: block;
+  display: inline-block;
   margin-top: 0.25rem;
   font-size: 0.75rem;
   color: var(--text-faint);
+  transition: color 0.2s;
+}
+
+.hint:hover {
+  color: var(--accent);
 }
 
 .catalog {
@@ -56,7 +61,7 @@
 
 .catalogHead {
   display: grid;
-  grid-template-columns: 2.5rem 1fr 9rem 6.5rem 5rem;
+  grid-template-columns: 2.5rem 1fr 9rem 6.5rem 5rem 2.5rem;
   gap: 1rem;
   align-items: center;
   padding: 1rem 1.75rem 1rem 2rem;

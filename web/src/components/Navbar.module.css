@@ -79,9 +79,3 @@
   border-color: var(--accent);
   color: var(--accent);
 }
-
-@media (max-width: 540px) {
-  .links a[href="/#board"] {
-    display: none;
-  }
-}

@@ -28,6 +28,13 @@ func TestSliceJobs(t *testing.T) {
 		}
 	})
 
+	t.Run("offset skips rows", func(t *testing.T) {
+		got := sliceJobsPage(jobs, 2, 1)
+		if len(got) != 2 || got[0].ApplicationLink != "2" || got[1].ApplicationLink != "3" {
+			t.Fatalf("got = %+v", got)
+		}
+	})
+
 	t.Run("limit above length", func(t *testing.T) {
 		got := sliceJobs(jobs, 10)
 		if len(got) != 3 {

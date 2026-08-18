@@ -10,6 +10,7 @@ export default function Footer() {
           Early-career roles · One board
         </p>
         <nav className={styles.nav}>
+          <Link to="/board">Board</Link>
           <Link to="/about">About</Link>
           <a href="mailto:internly@suli.nyc">Contact</a>
         </nav>

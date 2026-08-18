@@ -1,9 +1,15 @@
+import { useCallback, useState } from "react";
+import { Link } from "react-router-dom";
 import ListingCard from "./ListingCard";
+import JobDetailModal from "./JobDetailModal";
 import { useBoardPreview } from "../hooks/useBoardPreview";
+import type { Listing } from "../lib/listings";
 import styles from "./ListingBoard.module.css";
 
 export default function ListingBoard() {
   const { data: listings = [], isPending, isError } = useBoardPreview();
+  const [selected, setSelected] = useState<Listing | null>(null);
+  const closeModal = useCallback(() => setSelected(null), []);
 
   return (
     <section className={styles.board} id="board">
@@ -16,7 +22,9 @@ export default function ListingBoard() {
           <span className={styles.count}>
             {isPending ? "Loading…" : `${listings.length} shown`}
           </span>
-          <span className={styles.hint}>Sign in for search &amp; filters</span>
+          <Link to="/board" className={styles.hint}>
+            Open the full board
+          </Link>
         </div>
       </header>
 
@@ -27,6 +35,7 @@ export default function ListingBoard() {
           <span>Location</span>
           <span>Type</span>
           <span>Posted</span>
+          <span />
         </div>
 
         {isPending && (
@@ -42,9 +51,17 @@ export default function ListingBoard() {
         )}
 
         {listings.map((listing, index) => (
-          <ListingCard key={listing.id} listing={listing} index={index + 1} />
+          <ListingCard
+            key={listing.id}
+            listing={listing}
+            index={index + 1}
+            selected={selected?.id === listing.id}
+            onSelect={setSelected}
+          />
         ))}
       </div>
+
+      <JobDetailModal listing={selected} onClose={closeModal} />
     </section>
   );
 }

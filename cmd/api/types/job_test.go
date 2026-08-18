@@ -13,6 +13,7 @@ func TestJobListingFrom(t *testing.T) {
 	company := "Acme"
 	role := "Engineer Intern"
 	jobType := "Internship"
+	desc := "Build payments."
 	var id pgtype.UUID
 	if err := id.Scan("550e8400-e29b-41d4-a716-446655440000"); err != nil {
 		t.Fatal(err)
@@ -32,6 +33,7 @@ func TestJobListingFrom(t *testing.T) {
 		ApplicationLink: "https://jobs.example.com/1",
 		FirstSeen:       firstSeen,
 		SourceName:      "simplify",
+		Description:     &desc,
 	})
 
 	if listing.ID != id.String() || listing.Company != "Acme" || listing.RoleTitle != "Engineer Intern" {
@@ -40,12 +42,28 @@ func TestJobListingFrom(t *testing.T) {
 	if listing.FirstSeen == "" || len(listing.Locations) != 1 {
 		t.Fatalf("listing = %+v", listing)
 	}
+	if listing.Description != "Build payments." {
+		t.Fatalf("description = %q", listing.Description)
+	}
 }
 
 func TestWriteJobsList(t *testing.T) {
 	rec := httptest.NewRecorder()
 	WriteJobsList(rec, []JobListing{{ID: "1", Company: "Acme", Locations: []string{}}})
 
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+}
+
+func TestWriteJobsPage(t *testing.T) {
+	rec := httptest.NewRecorder()
+	WriteJobsPage(rec, JobsPage{
+		Jobs:   []JobListing{{ID: "1", Company: "Acme", Locations: []string{}}},
+		Total:  1,
+		Limit:  50,
+		Offset: 0,
+	})
 	if rec.Code != 200 {
 		t.Fatalf("status = %d", rec.Code)
 	}

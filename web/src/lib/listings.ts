@@ -5,26 +5,35 @@ export type Listing = {
   company: string;
   role: string;
   location: string;
+  locations: string[];
   type: string;
   posted: string;
+  firstSeen?: string;
   isNew?: boolean;
   applicationLink?: string;
+  description?: string;
+  source?: string;
 };
 
 export function jobToListing(job: Job): Listing {
+  const locations = job.locations ?? [];
   return {
     id: job.id,
     company: job.company || "Unknown",
     role: job.role_title || "Open role",
-    location: job.locations?.length ? job.locations.join(" · ") : "—",
+    location: locations.length ? locations.join(" · ") : "—",
+    locations,
     type: job.job_type || "—",
     posted: formatRelativePosted(job.first_seen),
+    firstSeen: job.first_seen,
     isNew: isWithinHours(job.first_seen, 48),
     applicationLink: job.application_link,
+    description: job.description,
+    source: job.source_name,
   };
 }
 
-function formatRelativePosted(iso: string | undefined): string {
+export function formatRelativePosted(iso: string | undefined): string {
   if (!iso) {
     return "—";
   }

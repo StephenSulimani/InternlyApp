@@ -59,6 +59,14 @@ func writeJobsError(w http.ResponseWriter, log *zap.SugaredLogger, err error) {
 	case errors.Is(err, service.ErrGetJobsStats):
 		log.Error(err)
 		types.WriteError(w, http.StatusInternalServerError, "Error querying the database")
+	case errors.Is(err, service.ErrInvalidJobsLimit):
+		types.WriteError(w, http.StatusBadRequest, "Invalid limit")
+	case errors.Is(err, service.ErrInvalidJobsOffset):
+		types.WriteError(w, http.StatusBadRequest, "Invalid offset")
+	case errors.Is(err, service.ErrInvalidJobsRecency):
+		types.WriteError(w, http.StatusBadRequest, "Invalid recency")
+	case errors.Is(err, service.ErrInvalidJobsSort):
+		types.WriteError(w, http.StatusBadRequest, "Invalid sort")
 	default:
 		log.Error(err)
 		types.WriteError(w, http.StatusInternalServerError, "Error retrieving jobs")

@@ -19,11 +19,17 @@ import (
 )
 
 type jobsListResponse struct {
-	Success bool `json:"success"`
+	Success bool   `json:"success"`
 	Message string `json:"message"`
-	Data    []struct {
-		ID      string `json:"id"`
-		Company string `json:"company"`
+	Data    struct {
+		Jobs []struct {
+			ID          string `json:"id"`
+			Company     string `json:"company"`
+			Description string `json:"description"`
+		} `json:"jobs"`
+		Total  int64 `json:"total"`
+		Limit  int   `json:"limit"`
+		Offset int   `json:"offset"`
 	} `json:"data"`
 }
 
@@ -60,8 +66,11 @@ func TestListJobsRoute(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
 		t.Fatal(err)
 	}
-	if !res.Success || len(res.Data) != 1 || res.Data[0].Company != "Acme" {
+	if !res.Success || len(res.Data.Jobs) != 1 || res.Data.Jobs[0].Company != "Acme" {
 		t.Fatalf("response = %+v", res)
+	}
+	if res.Data.Total != 1 || res.Data.Limit != 10 || res.Data.Offset != 0 {
+		t.Fatalf("page = %+v", res.Data)
 	}
 	if store.limit != 10 {
 		t.Fatalf("limit = %d, want 10", store.limit)
@@ -85,12 +94,20 @@ func TestListJobsRoute_errors(t *testing.T) {
 		assertAPIError(t, rec, http.StatusBadRequest, "Invalid limit")
 	})
 
-	t.Run("limit above max", func(t *testing.T) {
+	t.Run("invalid offset", func(t *testing.T) {
 		handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
 		rec := httptest.NewRecorder()
-		req := authedRequest(http.MethodGet, "/jobs?limit=500", token)
+		req := authedRequest(http.MethodGet, "/jobs?offset=-1", token)
 		handler.ServeHTTP(rec, req)
-		assertAPIError(t, rec, http.StatusBadRequest, "Invalid limit")
+		assertAPIError(t, rec, http.StatusBadRequest, "Invalid offset")
+	})
+
+	t.Run("invalid recency", func(t *testing.T) {
+		handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
+		rec := httptest.NewRecorder()
+		req := authedRequest(http.MethodGet, "/jobs?recency=month", token)
+		handler.ServeHTTP(rec, req)
+		assertAPIError(t, rec, http.StatusBadRequest, "Invalid recency")
 	})
 
 	t.Run("database error", func(t *testing.T) {
@@ -115,10 +132,95 @@ func TestListJobsRoute_errors(t *testing.T) {
 		if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
 			t.Fatal(err)
 		}
-		if !res.Success || len(res.Data) != 0 {
+		if !res.Success || len(res.Data.Jobs) != 0 || res.Data.Total != 0 {
 			t.Fatalf("response = %+v, want empty data", res)
 		}
 	})
+}
+
+func TestListJobsRoute_filtersAndOffset(t *testing.T) {
+	store := &mockJobStore{
+		jobs: []db.Job{
+			{ApplicationLink: "https://jobs.example.com/1"},
+			{ApplicationLink: "https://jobs.example.com/2"},
+			{ApplicationLink: "https://jobs.example.com/3"},
+		},
+	}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?q=intern&type=Internship&location=Remote&source=Greenhouse&recency=24h&limit=2&offset=1", token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var res jobsListResponse
+	if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.Success || len(res.Data.Jobs) != 2 || res.Data.Total != 3 {
+		t.Fatalf("response = %+v", res)
+	}
+	if res.Data.Limit != 2 || res.Data.Offset != 1 {
+		t.Fatalf("page = %+v", res.Data)
+	}
+
+	got := store.searchParams
+	if got.Q != "%intern%" || got.FilterType != "Internship" || got.FilterLocation != "%Remote%" || got.FilterSource != "Greenhouse" {
+		t.Fatalf("search params = %+v", got)
+	}
+	if got.RecencyHours != 24 || got.RowLimit != 2 || got.RowOffset != 1 {
+		t.Fatalf("search params = %+v", got)
+	}
+}
+
+func TestListJobsRoute_sort(t *testing.T) {
+	store := &mockJobStore{}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?sort=company&order=asc", token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.searchParams.SortBy != "company" || store.searchParams.SortDir != "asc" {
+		t.Fatalf("search params = %+v", store.searchParams)
+	}
+}
+
+func TestListJobsRoute_invalidSort(t *testing.T) {
+	handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?sort=salary", token)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusBadRequest, "Invalid sort")
+}
+
+func TestJobLocationsRoute(t *testing.T) {
+	store := &mockJobStore{locations: []string{"Remote", "New York, NY"}}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs/locations", token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var res struct {
+		Success bool     `json:"success"`
+		Data    []string `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.Success || len(res.Data) != 2 || res.Data[0] != "Remote" {
+		t.Fatalf("response = %+v", res)
+	}
 }
 
 func TestJobStatsRoute(t *testing.T) {
@@ -251,6 +353,7 @@ func testAuthedJobsHandler(t *testing.T, store service.JobReader, user db.User) 
 	authed := router.NewRoute().Subrouter()
 	authed.Use(RequireAuth)
 	authed.HandleFunc("/jobs", ListJobs).Methods("GET")
+	authed.HandleFunc("/jobs/locations", JobLocations).Methods("GET")
 
 	return router, token
 }

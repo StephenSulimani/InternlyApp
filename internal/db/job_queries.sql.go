@@ -11,6 +11,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countJobs = `-- name: CountJobs :one
+SELECT
+    COUNT(*)::bigint
+FROM
+    jobs
+WHERE
+    ($1::text = ''
+        OR company ILIKE $1 ESCAPE '\'
+        OR role_title ILIKE $1 ESCAPE '\'
+        OR COALESCE(description, '') ILIKE $1 ESCAPE '\'
+        OR source_name ILIKE $1 ESCAPE '\'
+        OR COALESCE(job_type, '') ILIKE $1 ESCAPE '\'
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+            WHERE
+                loc ILIKE $1 ESCAPE '\'))
+    AND ($2::text = ''
+        OR job_type = $2)
+    AND ($3::text = ''
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+            WHERE
+                loc ILIKE $3 ESCAPE '\'))
+    AND ($4::text = ''
+        OR source_name = $4)
+    AND ($5::int = 0
+        OR first_seen >= NOW() - ($5::int * INTERVAL '1 hour'))
+`
+
+type CountJobsParams struct {
+	Q              string `json:"q"`
+	FilterType     string `json:"filter_type"`
+	FilterLocation string `json:"filter_location"`
+	FilterSource   string `json:"filter_source"`
+	RecencyHours   int32  `json:"recency_hours"`
+}
+
+func (q *Queries) CountJobs(ctx context.Context, arg CountJobsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countJobs,
+		arg.Q,
+		arg.FilterType,
+		arg.FilterLocation,
+		arg.FilterSource,
+		arg.RecencyHours,
+	)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createJob = `-- name: CreateJob :one
 INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, is_ats, metadata)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, '{}'::jsonb))
@@ -196,4 +252,169 @@ func (q *Queries) GetJobsStats(ctx context.Context) (GetJobsStatsRow, error) {
 		&i.LastUpdated,
 	)
 	return i, err
+}
+
+const listJobLocations = `-- name: ListJobLocations :many
+SELECT DISTINCT
+    TRIM(loc) AS location
+FROM
+    jobs
+    CROSS JOIN LATERAL unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+WHERE
+    TRIM(loc) <> ''
+ORDER BY
+    location
+`
+
+func (q *Queries) ListJobLocations(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listJobLocations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var location string
+		if err := rows.Scan(&location); err != nil {
+			return nil, err
+		}
+		items = append(items, location)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchJobs = `-- name: SearchJobs :many
+SELECT
+    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata, embedding
+FROM
+    jobs
+WHERE
+    ($1::text = ''
+        OR company ILIKE $1 ESCAPE '\'
+        OR role_title ILIKE $1 ESCAPE '\'
+        OR COALESCE(description, '') ILIKE $1 ESCAPE '\'
+        OR source_name ILIKE $1 ESCAPE '\'
+        OR COALESCE(job_type, '') ILIKE $1 ESCAPE '\'
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+            WHERE
+                loc ILIKE $1 ESCAPE '\'))
+    AND ($2::text = ''
+        OR job_type = $2)
+    AND ($3::text = ''
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+            WHERE
+                loc ILIKE $3 ESCAPE '\'))
+    AND ($4::text = ''
+        OR source_name = $4)
+    AND ($5::int = 0
+        OR first_seen >= NOW() - ($5::int * INTERVAL '1 hour'))
+ORDER BY
+    CASE
+    WHEN $6::text = 'company'
+        AND $7::text = 'asc' THEN
+        lower(COALESCE(company, ''))
+    WHEN $6::text = 'role'
+        AND $7::text = 'asc' THEN
+        lower(COALESCE(role_title, ''))
+    WHEN $6::text = 'type'
+        AND $7::text = 'asc' THEN
+        lower(COALESCE(job_type, ''))
+    WHEN $6::text = 'location'
+        AND $7::text = 'asc' THEN
+        lower(COALESCE(locations[1], ''))
+    END ASC NULLS LAST,
+    CASE
+    WHEN $6::text = 'company'
+        AND $7::text = 'desc' THEN
+        lower(COALESCE(company, ''))
+    WHEN $6::text = 'role'
+        AND $7::text = 'desc' THEN
+        lower(COALESCE(role_title, ''))
+    WHEN $6::text = 'type'
+        AND $7::text = 'desc' THEN
+        lower(COALESCE(job_type, ''))
+    WHEN $6::text = 'location'
+        AND $7::text = 'desc' THEN
+        lower(COALESCE(locations[1], ''))
+    END DESC NULLS LAST,
+    CASE
+    WHEN $6::text = 'posted'
+        AND $7::text = 'asc' THEN
+        first_seen
+    END ASC NULLS LAST,
+    CASE
+    WHEN $6::text = 'posted'
+        AND $7::text = 'desc' THEN
+        first_seen
+    END DESC NULLS LAST,
+    first_seen DESC,
+    id ASC
+LIMIT $9 OFFSET $8
+`
+
+type SearchJobsParams struct {
+	Q              string `json:"q"`
+	FilterType     string `json:"filter_type"`
+	FilterLocation string `json:"filter_location"`
+	FilterSource   string `json:"filter_source"`
+	RecencyHours   int32  `json:"recency_hours"`
+	SortBy         string `json:"sort_by"`
+	SortDir        string `json:"sort_dir"`
+	RowOffset      int32  `json:"row_offset"`
+	RowLimit       int32  `json:"row_limit"`
+}
+
+func (q *Queries) SearchJobs(ctx context.Context, arg SearchJobsParams) ([]Job, error) {
+	rows, err := q.db.Query(ctx, searchJobs,
+		arg.Q,
+		arg.FilterType,
+		arg.FilterLocation,
+		arg.FilterSource,
+		arg.RecencyHours,
+		arg.SortBy,
+		arg.SortDir,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceUrl,
+			&i.SourceName,
+			&i.FirstSeen,
+			&i.ApplicationLink,
+			&i.Company,
+			&i.RoleTitle,
+			&i.Locations,
+			&i.JobType,
+			&i.Description,
+			&i.IsAts,
+			&i.Metadata,
+			&i.Embedding,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

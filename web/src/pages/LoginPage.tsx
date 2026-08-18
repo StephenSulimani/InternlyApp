@@ -17,7 +17,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate("/board", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -27,7 +27,7 @@ export default function LoginPage() {
 
     try {
       await login.mutateAsync({ email, password });
-      navigate("/");
+      navigate("/board");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Unable to sign in";

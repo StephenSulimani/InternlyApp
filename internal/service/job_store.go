@@ -21,6 +21,9 @@ type JobIngestStore interface {
 
 type JobReader interface {
 	GetJobsLimit(ctx context.Context, limit int32) ([]db.Job, error)
+	CountJobs(ctx context.Context, arg db.CountJobsParams) (int64, error)
+	SearchJobs(ctx context.Context, arg db.SearchJobsParams) ([]db.Job, error)
+	ListJobLocations(ctx context.Context) ([]string, error)
 	GetJobsStats(ctx context.Context) (db.GetJobsStatsRow, error)
 }
 

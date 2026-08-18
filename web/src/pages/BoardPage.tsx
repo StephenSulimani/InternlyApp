@@ -1,0 +1,263 @@
+import { useCallback, useState } from "react";
+import { Link } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import StatusBar from "../components/StatusBar";
+import Footer from "../components/Footer";
+import PageShell from "../components/PageShell";
+import BoardToolbar from "../components/BoardToolbar";
+import ListingCard from "../components/ListingCard";
+import JobDetailModal from "../components/JobDetailModal";
+import { useBoardListings } from "../hooks/useBoardListings";
+import {
+  EMPTY_BOARD_FILTERS,
+  DEFAULT_BOARD_SORT,
+  hasActiveFilters,
+  type BoardFilters,
+  type BoardSort,
+  type BoardSortField,
+} from "../lib/boardFilters";
+import type { Listing } from "../lib/listings";
+import { useAuth } from "../providers/AuthProvider";
+import styles from "./BoardPage.module.css";
+
+export default function BoardPage() {
+  const { isAuthenticated } = useAuth();
+  const [filters, setFilters] = useState<BoardFilters>(EMPTY_BOARD_FILTERS);
+  const [sort, setSort] = useState<BoardSort>(DEFAULT_BOARD_SORT);
+  const [offset, setOffset] = useState(0);
+  const [selected, setSelected] = useState<Listing | null>(null);
+
+  const {
+    listings,
+    total,
+    limit,
+    isPending,
+    isFetching,
+    isError,
+    facets,
+  } = useBoardListings(filters, sort, offset, isAuthenticated);
+
+  const closeModal = useCallback(() => setSelected(null), []);
+
+  function handleFiltersChange(next: BoardFilters) {
+    setFilters(next);
+    setOffset(0);
+    setSelected(null);
+  }
+
+  function handleSort(field: BoardSortField) {
+    setSort((current) => {
+      if (current.field === field) {
+        return { field, dir: current.dir === "asc" ? "desc" : "asc" };
+      }
+      return { field, dir: field === "posted" ? "desc" : "asc" };
+    });
+    setOffset(0);
+    setSelected(null);
+  }
+
+  const from = total === 0 ? 0 : offset + 1;
+  const to = offset + listings.length;
+  const canPrev = offset > 0;
+  const canNext = offset + listings.length < total;
+  const filtersActive = hasActiveFilters(filters);
+
+  let countLabel = "Sign in to browse";
+  if (isAuthenticated) {
+    if (isPending && listings.length === 0) {
+      countLabel = "Loading…";
+    } else if (total === 0) {
+      countLabel = "0 roles";
+    } else {
+      countLabel = `${from}–${to} of ${total} roles`;
+    }
+    if (isFetching && listings.length > 0) {
+      countLabel = `${countLabel} · updating`;
+    }
+  }
+
+  return (
+    <PageShell>
+      <Navbar />
+      <StatusBar />
+      <main className={styles.main}>
+        <section className={styles.board}>
+          <header className={styles.header}>
+            <div>
+              <span className={styles.label}>§ The board</span>
+              <h1 className={styles.title}>The full index</h1>
+              <p className={styles.lede}>
+                Search and filter internships, new-grad roles, and early-career
+                openings. Click a listing for details and apply on the original
+                posting.
+              </p>
+            </div>
+            <p className={styles.count}>{countLabel}</p>
+          </header>
+
+          <BoardToolbar
+            types={facets.types}
+            locations={facets.locations}
+            sources={facets.sources}
+            filters={filters}
+            onChange={handleFiltersChange}
+            disabled={!isAuthenticated}
+          />
+
+          <div className={styles.catalog}>
+            <div className={styles.catalogHead}>
+              <span className={styles.headIndex} aria-hidden="true">
+                #
+              </span>
+              <SortButton
+                field="company"
+                label="Company / Role"
+                sort={sort}
+                onSort={handleSort}
+                disabled={!isAuthenticated}
+              />
+              <SortButton
+                field="location"
+                label="Location"
+                sort={sort}
+                onSort={handleSort}
+                disabled={!isAuthenticated}
+              />
+              <SortButton
+                field="type"
+                label="Type"
+                sort={sort}
+                onSort={handleSort}
+                disabled={!isAuthenticated}
+              />
+              <SortButton
+                field="posted"
+                label="Posted"
+                sort={sort}
+                onSort={handleSort}
+                disabled={!isAuthenticated}
+              />
+              <span className={styles.headHint} aria-hidden="true" />
+            </div>
+
+            {!isAuthenticated && (
+              <p className={styles.empty}>
+                Sign in to search and filter the full board.{" "}
+                <Link to="/login" className={styles.reset}>
+                  Sign in
+                </Link>
+              </p>
+            )}
+
+            {isAuthenticated && isPending && listings.length === 0 && (
+              <p className={styles.empty}>Loading listings…</p>
+            )}
+
+            {isAuthenticated && isError && listings.length === 0 && (
+              <p className={styles.empty}>
+                Couldn’t load the board. Try again in a moment.
+              </p>
+            )}
+
+            {isAuthenticated &&
+              !isPending &&
+              !isError &&
+              listings.length === 0 && (
+                <p className={styles.empty}>
+                  {filtersActive ? (
+                    <>
+                      No roles match those filters. Try a broader search, or{" "}
+                      <button
+                        type="button"
+                        className={styles.reset}
+                        onClick={() => handleFiltersChange(EMPTY_BOARD_FILTERS)}
+                      >
+                        clear filters
+                      </button>
+                      .
+                    </>
+                  ) : (
+                    "No listings yet — check back soon."
+                  )}
+                </p>
+              )}
+
+            {isAuthenticated &&
+              listings.map((listing, index) => (
+                <ListingCard
+                  key={listing.id}
+                  listing={listing}
+                  index={offset + index + 1}
+                  selected={selected?.id === listing.id}
+                  onSelect={setSelected}
+                />
+              ))}
+          </div>
+
+          {isAuthenticated && total > 0 && (
+            <nav className={styles.pager} aria-label="Board pagination">
+              <button
+                type="button"
+                className={styles.pageBtn}
+                onClick={() => {
+                  setSelected(null);
+                  setOffset(Math.max(0, offset - limit));
+                }}
+                disabled={!canPrev || isFetching}
+              >
+                Previous
+              </button>
+              <span className={styles.pageStatus}>
+                {from}–{to} of {total}
+              </span>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                onClick={() => {
+                  setSelected(null);
+                  setOffset(offset + limit);
+                }}
+                disabled={!canNext || isFetching}
+              >
+                Next
+              </button>
+            </nav>
+          )}
+        </section>
+      </main>
+      <Footer />
+      <JobDetailModal listing={selected} onClose={closeModal} />
+    </PageShell>
+  );
+}
+
+function SortButton({
+  field,
+  label,
+  sort,
+  onSort,
+  disabled,
+}: {
+  field: BoardSortField;
+  label: string;
+  sort: BoardSort;
+  onSort: (field: BoardSortField) => void;
+  disabled: boolean;
+}) {
+  const active = sort.field === field;
+  const arrow = active ? (sort.dir === "asc" ? "↑" : "↓") : "";
+
+  return (
+    <button
+      type="button"
+      className={`${styles.sortBtn} ${active ? styles.sortActive : ""}`}
+      onClick={() => onSort(field)}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={`Sort by ${label}${active ? `, ${sort.dir}ending` : ""}`}
+    >
+      {label}
+      {arrow ? <span aria-hidden="true">{arrow}</span> : null}
+    </button>
+  );
+}
