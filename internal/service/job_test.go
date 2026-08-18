@@ -187,8 +187,8 @@ func TestJobService_Search(t *testing.T) {
 		}
 
 		got := store.searchParams
-		if got.Q != `%intern\%%` {
-			t.Fatalf("q = %q", got.Q)
+		if !slices.Equal(got.Q, []string{`%intern\%%`}) {
+			t.Fatalf("q = %v", got.Q)
 		}
 		if got.FilterType != "Internship" || got.FilterSource != "Greenhouse" {
 			t.Fatalf("params = %+v", got)
@@ -201,6 +201,22 @@ func TestJobService_Search(t *testing.T) {
 		}
 		if got.SortBy != "posted" || got.SortDir != "desc" {
 			t.Fatalf("sort = %s %s", got.SortBy, got.SortDir)
+		}
+	})
+
+	t.Run("splits comma-separated search terms", func(t *testing.T) {
+		store := &mockJobStore{}
+		svc := NewJobService(store)
+
+		_, err := svc.Search(context.Background(), JobListQuery{
+			Q: "intern, software, intern",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"%intern%", "%software%"}
+		if !slices.Equal(store.searchParams.Q, want) {
+			t.Fatalf("q = %v, want %v", store.searchParams.Q, want)
 		}
 	})
 

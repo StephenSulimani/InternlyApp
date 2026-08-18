@@ -27,19 +27,25 @@ SELECT
 FROM
     jobs
 WHERE
-    (sqlc.arg('q')::text = ''
-        OR company ILIKE sqlc.arg('q') ESCAPE '\'
-        OR role_title ILIKE sqlc.arg('q') ESCAPE '\'
-        OR COALESCE(description, '') ILIKE sqlc.arg('q') ESCAPE '\'
-        OR source_name ILIKE sqlc.arg('q') ESCAPE '\'
-        OR COALESCE(job_type, '') ILIKE sqlc.arg('q') ESCAPE '\'
+    (COALESCE(cardinality(sqlc.arg('q')::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
-                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                unnest(sqlc.arg('q')::text[]) AS needle
             WHERE
-                loc ILIKE sqlc.arg('q') ESCAPE '\'))
+                company ILIKE needle ESCAPE '\'
+                OR role_title ILIKE needle ESCAPE '\'
+                OR COALESCE(description, '') ILIKE needle ESCAPE '\'
+                OR source_name ILIKE needle ESCAPE '\'
+                OR COALESCE(job_type, '') ILIKE needle ESCAPE '\'
+                OR EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                    WHERE
+                        loc ILIKE needle ESCAPE '\')))
     AND (sqlc.arg('filter_type')::text = ''
         OR job_type = sqlc.arg('filter_type'))
     AND (COALESCE(cardinality(sqlc.arg('filter_locations')::text[]), 0) = 0
@@ -69,19 +75,25 @@ SELECT
 FROM
     jobs
 WHERE
-    (sqlc.arg('q')::text = ''
-        OR company ILIKE sqlc.arg('q') ESCAPE '\'
-        OR role_title ILIKE sqlc.arg('q') ESCAPE '\'
-        OR COALESCE(description, '') ILIKE sqlc.arg('q') ESCAPE '\'
-        OR source_name ILIKE sqlc.arg('q') ESCAPE '\'
-        OR COALESCE(job_type, '') ILIKE sqlc.arg('q') ESCAPE '\'
+    (COALESCE(cardinality(sqlc.arg('q')::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
-                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                unnest(sqlc.arg('q')::text[]) AS needle
             WHERE
-                loc ILIKE sqlc.arg('q') ESCAPE '\'))
+                company ILIKE needle ESCAPE '\'
+                OR role_title ILIKE needle ESCAPE '\'
+                OR COALESCE(description, '') ILIKE needle ESCAPE '\'
+                OR source_name ILIKE needle ESCAPE '\'
+                OR COALESCE(job_type, '') ILIKE needle ESCAPE '\'
+                OR EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                    WHERE
+                        loc ILIKE needle ESCAPE '\')))
     AND (sqlc.arg('filter_type')::text = ''
         OR job_type = sqlc.arg('filter_type'))
     AND (COALESCE(cardinality(sqlc.arg('filter_locations')::text[]), 0) = 0

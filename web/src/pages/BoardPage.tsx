@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import StatusBar from "../components/StatusBar";
@@ -8,10 +8,10 @@ import BoardToolbar from "../components/BoardToolbar";
 import ListingCard from "../components/ListingCard";
 import JobDetailModal from "../components/JobDetailModal";
 import { useBoardListings } from "../hooks/useBoardListings";
+import { usePersistedBoardSearch } from "../hooks/usePersistedBoardSearch";
 import { useToggleSavedJob } from "../hooks/useToggleSavedJob";
 import {
   EMPTY_BOARD_FILTERS,
-  DEFAULT_BOARD_SORT,
   hasActiveFilters,
   type BoardFilters,
   type BoardSort,
@@ -22,11 +22,17 @@ import { useAuth } from "../providers/AuthProvider";
 import styles from "./BoardPage.module.css";
 
 export default function BoardPage() {
-  const { isAuthenticated } = useAuth();
-  const [filters, setFilters] = useState<BoardFilters>(EMPTY_BOARD_FILTERS);
-  const [sort, setSort] = useState<BoardSort>(DEFAULT_BOARD_SORT);
+  const { user, isAuthenticated } = useAuth();
+  const { filters, setFilters, sort, setSort } = usePersistedBoardSearch(
+    user?.id,
+  );
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Listing | null>(null);
+
+  useEffect(() => {
+    setOffset(0);
+    setSelected(null);
+  }, [user?.id]);
 
   const {
     listings,

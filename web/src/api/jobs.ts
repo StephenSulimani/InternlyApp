@@ -23,6 +23,7 @@ export type Job = {
 
 /** Query params for GET /jobs. */
 export type JobListParams = {
+  /** CSV search terms (quote tokens that contain commas); a job matches if any term matches. */
   q?: string;
   type?: string;
   /** CSV locations (quote tokens that contain commas); a job matches if any token matches. */

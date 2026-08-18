@@ -17,19 +17,25 @@ SELECT
 FROM
     jobs
 WHERE
-    ($1::text = ''
-        OR company ILIKE $1 ESCAPE '\'
-        OR role_title ILIKE $1 ESCAPE '\'
-        OR COALESCE(description, '') ILIKE $1 ESCAPE '\'
-        OR source_name ILIKE $1 ESCAPE '\'
-        OR COALESCE(job_type, '') ILIKE $1 ESCAPE '\'
+    (COALESCE(cardinality($1::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
-                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                unnest($1::text[]) AS needle
             WHERE
-                loc ILIKE $1 ESCAPE '\'))
+                company ILIKE needle ESCAPE '\'
+                OR role_title ILIKE needle ESCAPE '\'
+                OR COALESCE(description, '') ILIKE needle ESCAPE '\'
+                OR source_name ILIKE needle ESCAPE '\'
+                OR COALESCE(job_type, '') ILIKE needle ESCAPE '\'
+                OR EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                    WHERE
+                        loc ILIKE needle ESCAPE '\')))
     AND ($2::text = ''
         OR job_type = $2)
     AND (COALESCE(cardinality($3::text[]), 0) = 0
@@ -55,7 +61,7 @@ WHERE
 `
 
 type CountJobsParams struct {
-	Q               string      `json:"q"`
+	Q               []string    `json:"q"`
 	FilterType      string      `json:"filter_type"`
 	FilterLocations []string    `json:"filter_locations"`
 	FilterSource    string      `json:"filter_source"`
@@ -304,19 +310,25 @@ SELECT
 FROM
     jobs
 WHERE
-    ($1::text = ''
-        OR company ILIKE $1 ESCAPE '\'
-        OR role_title ILIKE $1 ESCAPE '\'
-        OR COALESCE(description, '') ILIKE $1 ESCAPE '\'
-        OR source_name ILIKE $1 ESCAPE '\'
-        OR COALESCE(job_type, '') ILIKE $1 ESCAPE '\'
+    (COALESCE(cardinality($1::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
-                unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                unnest($1::text[]) AS needle
             WHERE
-                loc ILIKE $1 ESCAPE '\'))
+                company ILIKE needle ESCAPE '\'
+                OR role_title ILIKE needle ESCAPE '\'
+                OR COALESCE(description, '') ILIKE needle ESCAPE '\'
+                OR source_name ILIKE needle ESCAPE '\'
+                OR COALESCE(job_type, '') ILIKE needle ESCAPE '\'
+                OR EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
+                    WHERE
+                        loc ILIKE needle ESCAPE '\')))
     AND ($2::text = ''
         OR job_type = $2)
     AND (COALESCE(cardinality($3::text[]), 0) = 0
@@ -384,7 +396,7 @@ LIMIT $11 OFFSET $10
 `
 
 type SearchJobsParams struct {
-	Q               string      `json:"q"`
+	Q               []string    `json:"q"`
 	FilterType      string      `json:"filter_type"`
 	FilterLocations []string    `json:"filter_locations"`
 	FilterSource    string      `json:"filter_source"`

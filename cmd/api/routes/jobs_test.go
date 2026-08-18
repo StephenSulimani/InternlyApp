@@ -172,7 +172,7 @@ func TestListJobsRoute_filtersAndOffset(t *testing.T) {
 	}
 
 	got := store.searchParams
-	if got.Q != "%intern%" || got.FilterType != "Internship" || got.FilterSource != "Greenhouse" {
+	if !slices.Equal(got.Q, []string{"%intern%"}) || got.FilterType != "Internship" || got.FilterSource != "Greenhouse" {
 		t.Fatalf("search params = %+v", got)
 	}
 	if !slices.Equal(got.FilterLocations, []string{"%Remote%"}) {
@@ -199,6 +199,25 @@ func TestListJobsRoute_multipleLocations(t *testing.T) {
 	want := []string{"%NYC%", "%Manhattan%", "%New York%"}
 	if !slices.Equal(store.searchParams.FilterLocations, want) {
 		t.Fatalf("locations = %v, want %v", store.searchParams.FilterLocations, want)
+	}
+}
+
+func TestListJobsRoute_multipleSearchTerms(t *testing.T) {
+	store := &mockJobStore{}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	query := url.Values{}
+	query.Set("q", "intern, software")
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?"+query.Encode(), token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	want := []string{"%intern%", "%software%"}
+	if !slices.Equal(store.searchParams.Q, want) {
+		t.Fatalf("q = %v, want %v", store.searchParams.Q, want)
 	}
 }
 

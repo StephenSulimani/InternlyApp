@@ -93,9 +93,9 @@ func (s *JobService) Search(ctx context.Context, query JobListQuery) (JobPage, e
 	}
 
 	countParams := db.CountJobsParams{
-		Q:               likePattern(query.Q),
+		Q:               csvLikePatterns(query.Q),
 		FilterType:      strings.TrimSpace(query.Type),
-		FilterLocations: locationPatterns(query.Location),
+		FilterLocations: csvLikePatterns(query.Location),
 		FilterSource:    strings.TrimSpace(query.Source),
 		RecencyHours:    query.RecencyHours,
 		FilterSaved:     query.SavedOnly,
@@ -229,8 +229,8 @@ func (s *JobService) Locations(ctx context.Context) ([]string, error) {
 	return locations, nil
 }
 
-func locationPatterns(raw string) []string {
-	parts := splitLocationQuery(raw)
+func csvLikePatterns(raw string) []string {
+	parts := splitCSVQuery(raw)
 	out := make([]string, 0, len(parts))
 	seen := make(map[string]struct{}, len(parts))
 	for _, part := range parts {
@@ -248,9 +248,9 @@ func locationPatterns(raw string) []string {
 	return out
 }
 
-// splitLocationQuery parses a comma-separated location filter.
-// Tokens that contain commas must be CSV-quoted, e.g. `"New York, NY", Remote`.
-func splitLocationQuery(raw string) []string {
+// splitCSVQuery parses a comma-separated filter.
+// Tokens that contain commas must be quoted, e.g. `"New York, NY", Remote`.
+func splitCSVQuery(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil

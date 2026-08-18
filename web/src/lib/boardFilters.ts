@@ -44,12 +44,14 @@ export function filterListings(
   listings: Listing[],
   filters: BoardFilters,
 ): Listing[] {
-  const q = filters.q.trim().toLowerCase();
   const recencyMs = filters.recency ? RECENCY_MS[filters.recency] : null;
   const now = Date.now();
 
   return listings.filter((listing) => {
-    if (q) {
+    const queries = splitLocationTokens(filters.q).map((token) =>
+      token.toLowerCase(),
+    );
+    if (queries.length > 0) {
       const haystack = [
         listing.company,
         listing.role,
@@ -61,7 +63,7 @@ export function filterListings(
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      if (!haystack.includes(q)) {
+      if (!queries.some((needle) => haystack.includes(needle))) {
         return false;
       }
     }
