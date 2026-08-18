@@ -9,6 +9,13 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+type CompanyAt struct {
+	ID          pgtype.UUID `json:"id"`
+	CompanyName string      `json:"company_name"`
+	AtsUrl      string      `json:"ats_url"`
+	Working     bool        `json:"working"`
+}
+
 type Job struct {
 	ID              pgtype.UUID        `json:"id"`
 	SourceUrl       string             `json:"source_url"`
