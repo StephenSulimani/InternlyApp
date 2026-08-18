@@ -34,9 +34,9 @@ func TestDiscover(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "ashby job",
-			in:   "https://jobs.ashbyhq.com/anthropic/role-id",
-			want: Board{Name: "ashby", URL: "https://jobs.ashbyhq.com/anthropic"},
+			name: "ashby custom subdomain",
+			in:   "https://anthropic.ashbyhq.com/api-job",
+			want: Board{Name: "ashby", URL: "https://anthropic.ashbyhq.com"},
 			ok:   true,
 		},
 		{

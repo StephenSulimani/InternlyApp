@@ -11,105 +11,149 @@ type Board struct {
 	URL  string
 }
 
+type parsedLink struct {
+	scheme string
+	host   string
+	parts  []string
+	query  url.Values
+}
+
+type provider struct {
+	name  string
+	match func(host string) bool
+	// boardPath returns the path after origin ("stripe"), or "" for origin-only.
+	boardPath func(parsedLink) (string, bool)
+}
+
+var providers = []provider{
+	{name: "greenhouse", match: contains("greenhouse.io"), boardPath: greenhousePath},
+	{name: "lever", match: exactOrSuffix("jobs.lever.co", "lever.co"), boardPath: firstSegment},
+	{name: "ashby", match: exactOrSuffix("jobs.ashbyhq.com", "ashbyhq.com"), boardPath: ashbyPath},
+	{name: "workday", match: contains("myworkdayjobs.com", "workdayjobs.com"), boardPath: workdayPath},
+	{name: "smartrecruiters", match: exact("jobs.smartrecruiters.com"), boardPath: firstSegment},
+	{name: "workable", match: exact("apply.workable.com"), boardPath: firstSegment},
+	{name: "jobvite", match: contains("jobvite.com"), boardPath: firstSegment},
+	{name: "icims", match: contains("icims.com"), boardPath: fixedPath("jobs")},
+	{name: "rippling", match: exactOrSuffix("ats.rippling.com", "rippling.com"), boardPath: firstSegment},
+}
+
 // Discover extracts a scrapeable ATS board URL from a job application link.
 // Returns false when the link is not a supported ATS posting.
 func Discover(applicationURL string) (Board, bool) {
-	parsed, err := url.Parse(strings.TrimSpace(applicationURL))
-	if err != nil || parsed.Host == "" {
+	link, ok := parseLink(applicationURL)
+	if !ok {
 		return Board{}, false
 	}
 
-	host := strings.ToLower(strings.TrimPrefix(parsed.Hostname(), "www."))
-	path := strings.Trim(parsed.Path, "/")
-	parts := splitPath(path)
-
-	switch {
-	case strings.Contains(host, "greenhouse.io"):
-		return greenhouseBoard(parsed.Scheme, host, parts, parsed.Query())
-	case host == "jobs.lever.co" || strings.HasSuffix(host, ".lever.co"):
-		return firstSegmentBoard("lever", parsed.Scheme, host, parts)
-	case host == "jobs.ashbyhq.com" || strings.HasSuffix(host, ".ashbyhq.com"):
-		return ashbyBoard(parsed.Scheme, host, parts)
-	case strings.Contains(host, "myworkdayjobs.com") || strings.Contains(host, "workdayjobs.com"):
-		return workdayBoard(parsed.Scheme, host, parts)
-	case host == "jobs.smartrecruiters.com":
-		return firstSegmentBoard("smartrecruiters", parsed.Scheme, host, parts)
-	case host == "apply.workable.com":
-		return firstSegmentBoard("workable", parsed.Scheme, host, parts)
-	case strings.Contains(host, "jobvite.com"):
-		return firstSegmentBoard("jobvite", parsed.Scheme, host, parts)
-	case strings.Contains(host, "icims.com"):
-		return icimsBoard(parsed.Scheme, host)
-	case host == "ats.rippling.com" || strings.Contains(host, "rippling.com"):
-		return firstSegmentBoard("rippling", parsed.Scheme, host, parts)
-	default:
-		return Board{}, false
-	}
-}
-
-func greenhouseBoard(scheme, host string, parts []string, query url.Values) (Board, bool) {
-	if len(parts) == 0 {
-		return Board{}, false
-	}
-	slug := parts[0]
-	if slug == "embed" {
-		slug = query.Get("for")
-	}
-	if slug == "" || slug == "jobs" {
-		return Board{}, false
-	}
-	return Board{Name: "greenhouse", URL: origin(scheme, host) + "/" + slug}, true
-}
-
-func ashbyBoard(scheme, host string, parts []string) (Board, bool) {
-	if host != "jobs.ashbyhq.com" {
-		return Board{Name: "ashby", URL: origin(scheme, host)}, true
-	}
-	return firstSegmentBoard("ashby", scheme, host, parts)
-}
-
-func workdayBoard(scheme, host string, parts []string) (Board, bool) {
-	cutoff := len(parts)
-	for i, part := range parts {
-		if strings.EqualFold(part, "job") {
-			cutoff = i
-			break
+	for _, p := range providers {
+		if !p.match(link.host) {
+			continue
 		}
+		path, ok := p.boardPath(link)
+		if !ok {
+			return Board{}, false
+		}
+		return Board{Name: p.name, URL: boardURL(link.scheme, link.host, path)}, true
 	}
-	if cutoff == 0 {
-		return Board{Name: "workday", URL: origin(scheme, host)}, true
-	}
-	return Board{Name: "workday", URL: origin(scheme, host) + "/" + strings.Join(parts[:cutoff], "/")}, true
+
+	return Board{}, false
 }
 
-func icimsBoard(scheme, host string) (Board, bool) {
-	return Board{Name: "icims", URL: origin(scheme, host) + "/jobs"}, true
-}
-
-func firstSegmentBoard(name, scheme, host string, parts []string) (Board, bool) {
-	if len(parts) == 0 {
-		return Board{}, false
+func parseLink(raw string) (parsedLink, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" {
+		return parsedLink{}, false
 	}
-	return Board{Name: name, URL: origin(scheme, host) + "/" + parts[0]}, true
-}
 
-func origin(scheme, host string) string {
+	scheme := parsed.Scheme
 	if scheme == "" {
 		scheme = "https"
 	}
-	return scheme + "://" + host
+
+	return parsedLink{
+		scheme: scheme,
+		host:   strings.ToLower(strings.TrimPrefix(parsed.Hostname(), "www.")),
+		parts:  splitPath(parsed.Path),
+		query:  parsed.Query(),
+	}, true
+}
+
+func greenhousePath(link parsedLink) (string, bool) {
+	if len(link.parts) == 0 {
+		return "", false
+	}
+	slug := link.parts[0]
+	if slug == "embed" {
+		slug = link.query.Get("for")
+	}
+	if slug == "" || slug == "jobs" {
+		return "", false
+	}
+	return slug, true
+}
+
+func ashbyPath(link parsedLink) (string, bool) {
+	if link.host != "jobs.ashbyhq.com" {
+		return "", true
+	}
+	return firstSegment(link)
+}
+
+func workdayPath(link parsedLink) (string, bool) {
+	for i, part := range link.parts {
+		if strings.EqualFold(part, "job") {
+			return strings.Join(link.parts[:i], "/"), true
+		}
+	}
+	return strings.Join(link.parts, "/"), true
+}
+
+func firstSegment(link parsedLink) (string, bool) {
+	if len(link.parts) == 0 {
+		return "", false
+	}
+	return link.parts[0], true
+}
+
+func fixedPath(path string) func(parsedLink) (string, bool) {
+	return func(parsedLink) (string, bool) {
+		return path, true
+	}
+}
+
+func contains(needles ...string) func(string) bool {
+	return func(host string) bool {
+		for _, n := range needles {
+			if strings.Contains(host, n) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func exact(want string) func(string) bool {
+	return func(host string) bool { return host == want }
+}
+
+func exactOrSuffix(exactHost, suffix string) func(string) bool {
+	return func(host string) bool {
+		return host == exactHost || strings.HasSuffix(host, "."+suffix)
+	}
+}
+
+func boardURL(scheme, host, path string) string {
+	base := scheme + "://" + host
+	if path == "" {
+		return base
+	}
+	return base + "/" + strings.Trim(path, "/")
 }
 
 func splitPath(path string) []string {
+	path = strings.Trim(path, "/")
 	if path == "" {
 		return nil
 	}
-	raw := strings.Split(path, "/")
-	out := make([]string, 0, len(raw))
-	for _, part := range raw {
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
+	return strings.Split(path, "/")
 }
