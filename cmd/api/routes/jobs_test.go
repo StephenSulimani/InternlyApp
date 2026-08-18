@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"slices"
 	"testing"
 	"time"
 
@@ -168,11 +170,52 @@ func TestListJobsRoute_filtersAndOffset(t *testing.T) {
 	}
 
 	got := store.searchParams
-	if got.Q != "%intern%" || got.FilterType != "Internship" || got.FilterLocation != "%Remote%" || got.FilterSource != "Greenhouse" {
+	if got.Q != "%intern%" || got.FilterType != "Internship" || got.FilterSource != "Greenhouse" {
 		t.Fatalf("search params = %+v", got)
+	}
+	if !slices.Equal(got.FilterLocations, []string{"%Remote%"}) {
+		t.Fatalf("locations = %v", got.FilterLocations)
 	}
 	if got.RecencyHours != 24 || got.RowLimit != 2 || got.RowOffset != 1 {
 		t.Fatalf("search params = %+v", got)
+	}
+}
+
+func TestListJobsRoute_multipleLocations(t *testing.T) {
+	store := &mockJobStore{}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	query := url.Values{}
+	query.Set("location", "NYC, Manhattan, New York")
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?"+query.Encode(), token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	want := []string{"%NYC%", "%Manhattan%", "%New York%"}
+	if !slices.Equal(store.searchParams.FilterLocations, want) {
+		t.Fatalf("locations = %v, want %v", store.searchParams.FilterLocations, want)
+	}
+}
+
+func TestListJobsRoute_quotedLocationWithComma(t *testing.T) {
+	store := &mockJobStore{}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	query := url.Values{}
+	query.Set("location", `"New York, NY", Remote`)
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?"+query.Encode(), token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	want := []string{"%New York, NY%", "%Remote%"}
+	if !slices.Equal(store.searchParams.FilterLocations, want) {
+		t.Fatalf("locations = %v, want %v", store.searchParams.FilterLocations, want)
 	}
 }
 

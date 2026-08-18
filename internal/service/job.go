@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"math"
 	"strings"
@@ -81,11 +82,11 @@ func (s *JobService) Search(ctx context.Context, query JobListQuery) (JobPage, e
 	}
 
 	countParams := db.CountJobsParams{
-		Q:              likePattern(query.Q),
-		FilterType:     strings.TrimSpace(query.Type),
-		FilterLocation: likePattern(query.Location),
-		FilterSource:   strings.TrimSpace(query.Source),
-		RecencyHours:   query.RecencyHours,
+		Q:               likePattern(query.Q),
+		FilterType:      strings.TrimSpace(query.Type),
+		FilterLocations: locationPatterns(query.Location),
+		FilterSource:    strings.TrimSpace(query.Source),
+		RecencyHours:    query.RecencyHours,
 	}
 	total, err := s.store.CountJobs(ctx, countParams)
 	if err != nil {
@@ -95,15 +96,15 @@ func (s *JobService) Search(ctx context.Context, query JobListQuery) (JobPage, e
 	sortBy, sortDir := normalizeSort(query.SortBy, query.SortDir)
 
 	jobs, err := s.store.SearchJobs(ctx, db.SearchJobsParams{
-		Q:              countParams.Q,
-		FilterType:     countParams.FilterType,
-		FilterLocation: countParams.FilterLocation,
-		FilterSource:   countParams.FilterSource,
-		RecencyHours:   countParams.RecencyHours,
-		SortBy:         sortBy,
-		SortDir:        sortDir,
-		RowLimit:       int32(limit),
-		RowOffset:      int32(offset),
+		Q:               countParams.Q,
+		FilterType:      countParams.FilterType,
+		FilterLocations: countParams.FilterLocations,
+		FilterSource:    countParams.FilterSource,
+		RecencyHours:    countParams.RecencyHours,
+		SortBy:          sortBy,
+		SortDir:         sortDir,
+		RowLimit:        int32(limit),
+		RowOffset:       int32(offset),
 	})
 	if err != nil {
 		return JobPage{}, errors.Join(ErrGetJobs, err)
@@ -194,6 +195,44 @@ func (s *JobService) Locations(ctx context.Context) ([]string, error) {
 		return []string{}, nil
 	}
 	return locations, nil
+}
+
+func locationPatterns(raw string) []string {
+	parts := splitLocationQuery(raw)
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		pattern := likePattern(part)
+		if pattern == "" {
+			continue
+		}
+		key := strings.ToLower(pattern)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, pattern)
+	}
+	return out
+}
+
+// splitLocationQuery parses a comma-separated location filter.
+// Tokens that contain commas must be CSV-quoted, e.g. `"New York, NY", Remote`.
+func splitLocationQuery(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	reader := csv.NewReader(strings.NewReader(raw))
+	reader.TrimLeadingSpace = true
+	reader.FieldsPerRecord = -1
+	reader.LazyQuotes = true
+	parts, err := reader.Read()
+	if err != nil {
+		return []string{raw}
+	}
+	return parts
 }
 
 func likePattern(q string) string {

@@ -32,14 +32,13 @@ WHERE
                 loc ILIKE $1 ESCAPE '\'))
     AND ($2::text = ''
         OR job_type = $2)
-    AND ($3::text = ''
+    AND (COALESCE(cardinality($3::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
                 unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
-            WHERE
-                loc ILIKE $3 ESCAPE '\'))
+                JOIN unnest($3::text[]) AS needle ON loc ILIKE needle ESCAPE '\'))
     AND ($4::text = ''
         OR source_name = $4)
     AND ($5::int = 0
@@ -47,18 +46,18 @@ WHERE
 `
 
 type CountJobsParams struct {
-	Q              string `json:"q"`
-	FilterType     string `json:"filter_type"`
-	FilterLocation string `json:"filter_location"`
-	FilterSource   string `json:"filter_source"`
-	RecencyHours   int32  `json:"recency_hours"`
+	Q               string   `json:"q"`
+	FilterType      string   `json:"filter_type"`
+	FilterLocations []string `json:"filter_locations"`
+	FilterSource    string   `json:"filter_source"`
+	RecencyHours    int32    `json:"recency_hours"`
 }
 
 func (q *Queries) CountJobs(ctx context.Context, arg CountJobsParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countJobs,
 		arg.Q,
 		arg.FilterType,
-		arg.FilterLocation,
+		arg.FilterLocations,
 		arg.FilterSource,
 		arg.RecencyHours,
 	)
@@ -307,14 +306,13 @@ WHERE
                 loc ILIKE $1 ESCAPE '\'))
     AND ($2::text = ''
         OR job_type = $2)
-    AND ($3::text = ''
+    AND (COALESCE(cardinality($3::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
                 unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
-            WHERE
-                loc ILIKE $3 ESCAPE '\'))
+                JOIN unnest($3::text[]) AS needle ON loc ILIKE needle ESCAPE '\'))
     AND ($4::text = ''
         OR source_name = $4)
     AND ($5::int = 0
@@ -364,22 +362,22 @@ LIMIT $9 OFFSET $8
 `
 
 type SearchJobsParams struct {
-	Q              string `json:"q"`
-	FilterType     string `json:"filter_type"`
-	FilterLocation string `json:"filter_location"`
-	FilterSource   string `json:"filter_source"`
-	RecencyHours   int32  `json:"recency_hours"`
-	SortBy         string `json:"sort_by"`
-	SortDir        string `json:"sort_dir"`
-	RowOffset      int32  `json:"row_offset"`
-	RowLimit       int32  `json:"row_limit"`
+	Q               string   `json:"q"`
+	FilterType      string   `json:"filter_type"`
+	FilterLocations []string `json:"filter_locations"`
+	FilterSource    string   `json:"filter_source"`
+	RecencyHours    int32    `json:"recency_hours"`
+	SortBy          string   `json:"sort_by"`
+	SortDir         string   `json:"sort_dir"`
+	RowOffset       int32    `json:"row_offset"`
+	RowLimit        int32    `json:"row_limit"`
 }
 
 func (q *Queries) SearchJobs(ctx context.Context, arg SearchJobsParams) ([]Job, error) {
 	rows, err := q.db.Query(ctx, searchJobs,
 		arg.Q,
 		arg.FilterType,
-		arg.FilterLocation,
+		arg.FilterLocations,
 		arg.FilterSource,
 		arg.RecencyHours,
 		arg.SortBy,

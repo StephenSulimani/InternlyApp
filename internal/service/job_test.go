@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stephensulimani/internlyapp/internal/db"
@@ -187,14 +188,62 @@ func TestJobService_Search(t *testing.T) {
 		if got.Q != `%intern\%%` {
 			t.Fatalf("q = %q", got.Q)
 		}
-		if got.FilterType != "Internship" || got.FilterLocation != "%Remote%" || got.FilterSource != "Greenhouse" {
+		if got.FilterType != "Internship" || got.FilterSource != "Greenhouse" {
 			t.Fatalf("params = %+v", got)
+		}
+		if !slices.Equal(got.FilterLocations, []string{"%Remote%"}) {
+			t.Fatalf("locations = %v", got.FilterLocations)
 		}
 		if got.RecencyHours != 24 || got.RowLimit != 10 || got.RowOffset != 20 {
 			t.Fatalf("params = %+v", got)
 		}
 		if got.SortBy != "posted" || got.SortDir != "desc" {
 			t.Fatalf("sort = %s %s", got.SortBy, got.SortDir)
+		}
+	})
+
+	t.Run("splits comma-separated locations", func(t *testing.T) {
+		store := &mockJobStore{}
+		svc := NewJobService(store)
+
+		_, err := svc.Search(context.Background(), JobListQuery{
+			Location: "NYC, Manhattan, New York, manhattan",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"%NYC%", "%Manhattan%", "%New York%"}
+		if !slices.Equal(store.searchParams.FilterLocations, want) {
+			t.Fatalf("locations = %v, want %v", store.searchParams.FilterLocations, want)
+		}
+	})
+
+	t.Run("keeps quoted locations with commas intact", func(t *testing.T) {
+		store := &mockJobStore{}
+		svc := NewJobService(store)
+
+		_, err := svc.Search(context.Background(), JobListQuery{
+			Location: `"New York, NY", Remote`,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"%New York, NY%", "%Remote%"}
+		if !slices.Equal(store.searchParams.FilterLocations, want) {
+			t.Fatalf("locations = %v, want %v", store.searchParams.FilterLocations, want)
+		}
+	})
+
+	t.Run("empty location skips filter", func(t *testing.T) {
+		store := &mockJobStore{}
+		svc := NewJobService(store)
+
+		_, err := svc.Search(context.Background(), JobListQuery{Location: " , "})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(store.searchParams.FilterLocations) != 0 {
+			t.Fatalf("locations = %v", store.searchParams.FilterLocations)
 		}
 	})
 

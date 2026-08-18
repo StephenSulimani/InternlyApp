@@ -24,6 +24,7 @@ export type Job = {
 export type JobListParams = {
   q?: string;
   type?: string;
+  /** CSV locations (quote tokens that contain commas); a job matches if any token matches. */
   location?: string;
   source?: string;
   recency?: "24h" | "3d" | "7d" | "";

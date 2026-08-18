@@ -42,14 +42,13 @@ WHERE
                 loc ILIKE sqlc.arg('q') ESCAPE '\'))
     AND (sqlc.arg('filter_type')::text = ''
         OR job_type = sqlc.arg('filter_type'))
-    AND (sqlc.arg('filter_location')::text = ''
+    AND (COALESCE(cardinality(sqlc.arg('filter_locations')::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
                 unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
-            WHERE
-                loc ILIKE sqlc.arg('filter_location') ESCAPE '\'))
+                JOIN unnest(sqlc.arg('filter_locations')::text[]) AS needle ON loc ILIKE needle ESCAPE '\'))
     AND (sqlc.arg('filter_source')::text = ''
         OR source_name = sqlc.arg('filter_source'))
     AND (sqlc.arg('recency_hours')::int = 0
@@ -76,14 +75,13 @@ WHERE
                 loc ILIKE sqlc.arg('q') ESCAPE '\'))
     AND (sqlc.arg('filter_type')::text = ''
         OR job_type = sqlc.arg('filter_type'))
-    AND (sqlc.arg('filter_location')::text = ''
+    AND (COALESCE(cardinality(sqlc.arg('filter_locations')::text[]), 0) = 0
         OR EXISTS (
             SELECT
                 1
             FROM
                 unnest(COALESCE(locations, ARRAY[]::text[])) AS loc
-            WHERE
-                loc ILIKE sqlc.arg('filter_location') ESCAPE '\'))
+                JOIN unnest(sqlc.arg('filter_locations')::text[]) AS needle ON loc ILIKE needle ESCAPE '\'))
     AND (sqlc.arg('filter_source')::text = ''
         OR source_name = sqlc.arg('filter_source'))
     AND (sqlc.arg('recency_hours')::int = 0

@@ -69,10 +69,19 @@ export function filterListings(
     }
 
     if (filters.location) {
-      const inLocations = listing.locations.includes(filters.location);
-      const inLabel = listing.location === filters.location;
-      if (!inLocations && !inLabel) {
-        return false;
+      const needles = splitLocationTokens(filters.location).map((token) =>
+        token.toLowerCase(),
+      );
+      if (needles.length > 0) {
+        const haystack = [...listing.locations, listing.location]
+          .filter(Boolean)
+          .map((loc) => loc.toLowerCase());
+        const matched = needles.some((needle) =>
+          haystack.some((loc) => loc.includes(needle)),
+        );
+        if (!matched) {
+          return false;
+        }
       }
     }
 
@@ -122,4 +131,105 @@ export function listingSources(listings: Listing[]): string[] {
   return uniqueSorted(
     listings.map((listing) => listing.source).filter((s): s is string => Boolean(s)),
   );
+}
+
+/**
+ * CSV location tokens. Values with commas are quoted so
+ * `"New York, NY"` stays one location.
+ */
+export function splitLocationTokens(value: string): string[] {
+  const tokens: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (value[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    if (char === ",") {
+      const token = current.trim();
+      if (token) {
+        tokens.push(token);
+      }
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const token = current.trim();
+  if (token) {
+    tokens.push(token);
+  }
+  return tokens;
+}
+
+export function joinLocationTokens(tokens: string[]): string {
+  return tokens
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .map(quoteLocationToken)
+    .join(", ");
+}
+
+function quoteLocationToken(token: string): string {
+  if (/[",\n\r]/.test(token)) {
+    return `"${token.replaceAll('"', '""')}"`;
+  }
+  return token;
+}
+
+export function addLocationToken(selected: string[], token: string): string[] {
+  const next = token.trim();
+  if (!next) {
+    return selected;
+  }
+  if (selected.some((item) => item.toLowerCase() === next.toLowerCase())) {
+    return selected;
+  }
+  return [...selected, next];
+}
+
+export function removeLocationToken(selected: string[], token: string): string[] {
+  return selected.filter((item) => item.toLowerCase() !== token.toLowerCase());
+}
+
+export function matchingLocationSuggestions(
+  locations: string[],
+  selected: string[],
+  draft: string,
+  limit = 8,
+): string[] {
+  const selectedSet = new Set(selected.map((token) => token.toLowerCase()));
+  const needle = draft.trim().toLowerCase();
+
+  return locations
+    .filter((location) => {
+      if (selectedSet.has(location.toLowerCase())) {
+        return false;
+      }
+      if (!needle) {
+        return true;
+      }
+      return location.toLowerCase().includes(needle);
+    })
+    .slice(0, limit);
 }
