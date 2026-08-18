@@ -67,6 +67,18 @@ func writeJobsError(w http.ResponseWriter, log *zap.SugaredLogger, err error) {
 		types.WriteError(w, http.StatusBadRequest, "Invalid recency")
 	case errors.Is(err, service.ErrInvalidJobsSort):
 		types.WriteError(w, http.StatusBadRequest, "Invalid sort")
+	case errors.Is(err, service.ErrInvalidJobsSaved):
+		types.WriteError(w, http.StatusBadRequest, "Invalid saved filter")
+	case errors.Is(err, service.ErrInvalidJobID):
+		types.WriteError(w, http.StatusBadRequest, "Invalid job id")
+	case errors.Is(err, service.ErrJobNotFound):
+		types.WriteError(w, http.StatusNotFound, "Job not found")
+	case errors.Is(err, service.ErrSaveJob):
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error saving job")
+	case errors.Is(err, service.ErrUnsaveJob):
+		log.Error(err)
+		types.WriteError(w, http.StatusInternalServerError, "Error unsaving job")
 	default:
 		log.Error(err)
 		types.WriteError(w, http.StatusInternalServerError, "Error retrieving jobs")

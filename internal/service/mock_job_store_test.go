@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stephensulimani/internlyapp/internal/db"
 )
 
@@ -35,6 +36,15 @@ type mockJobStore struct {
 
 	atsCalls []db.UpsertCompanyATSParams
 	atsErr   error
+
+	getJobErr     error
+	getJob        func(ctx context.Context, id pgtype.UUID) (db.Job, error)
+	saveErr       error
+	unsaveErr     error
+	saveCalls     []db.SaveJobParams
+	unsaveCalls   []db.UnsaveJobParams
+	savedAmong    []pgtype.UUID
+	savedAmongErr error
 }
 
 func (m *mockJobStore) CreateJob(ctx context.Context, arg db.CreateJobParams) (db.Job, error) {
@@ -119,6 +129,41 @@ func (m *mockJobStore) GetJobsStats(ctx context.Context) (db.GetJobsStatsRow, er
 		return db.GetJobsStatsRow{}, m.statsErr
 	}
 	return m.stats, nil
+}
+
+func (m *mockJobStore) GetJob(ctx context.Context, id pgtype.UUID) (db.Job, error) {
+	if m.getJob != nil {
+		return m.getJob(ctx, id)
+	}
+	if m.getJobErr != nil {
+		return db.Job{}, m.getJobErr
+	}
+	for _, job := range m.jobs {
+		if job.ID == id {
+			return job, nil
+		}
+	}
+	return db.Job{ID: id}, nil
+}
+
+func (m *mockJobStore) ListSavedJobIDsAmong(ctx context.Context, arg db.ListSavedJobIDsAmongParams) ([]pgtype.UUID, error) {
+	if m.savedAmongErr != nil {
+		return nil, m.savedAmongErr
+	}
+	if m.savedAmong != nil {
+		return m.savedAmong, nil
+	}
+	return []pgtype.UUID{}, nil
+}
+
+func (m *mockJobStore) SaveJob(ctx context.Context, arg db.SaveJobParams) error {
+	m.saveCalls = append(m.saveCalls, arg)
+	return m.saveErr
+}
+
+func (m *mockJobStore) UnsaveJob(ctx context.Context, arg db.UnsaveJobParams) error {
+	m.unsaveCalls = append(m.unsaveCalls, arg)
+	return m.unsaveErr
 }
 
 func sliceJobs(jobs []db.Job, limit int32) []db.Job {

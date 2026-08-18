@@ -12,7 +12,24 @@
   cursor: default;
 }
 
-article:last-child .row {
+.item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.5rem;
+  gap: 1rem;
+  align-items: center;
+  padding-right: 1.75rem;
+  border-bottom: 1px solid var(--rule);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.item .row {
+  border-bottom: none;
+  padding-right: 0;
+  grid-template-columns: 2.5rem 1fr 9rem 6.5rem 5rem;
+}
+
+article:last-child .row,
+article:last-child.item {
   border-bottom: none;
 }
 
@@ -21,9 +38,18 @@ article:last-child .row {
 }
 
 .row:hover,
-.selected {
+.selected,
+.item:hover,
+.item:has(.selected) {
   background: var(--bg-card);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.item:hover .row,
+.item .row.selected,
+.item .row:hover {
+  background: transparent;
+  box-shadow: none;
 }
 
 .interactive:focus-visible {
@@ -113,6 +139,16 @@ article:last-child .row {
     grid-template-rows: auto auto;
     gap: 0.35rem 1rem;
     padding: 1.25rem 1.5rem 1.25rem 1.75rem;
+  }
+
+  .item {
+    grid-template-columns: minmax(0, 1fr) 2.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .item .row {
+    grid-template-columns: 2rem 1fr;
+    padding-right: 0;
   }
 
   .hint {

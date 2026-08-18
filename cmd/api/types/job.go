@@ -18,6 +18,7 @@ type JobListing struct {
 	FirstSeen       string   `json:"first_seen,omitempty"`
 	SourceName      string   `json:"source_name"`
 	Description     string   `json:"description,omitempty"`
+	Saved           bool     `json:"saved"`
 }
 
 type JobsPage struct {
@@ -65,9 +66,17 @@ func JobListingsFrom(jobs []db.Job) []JobListing {
 	return listings
 }
 
-func JobsPageFrom(jobs []db.Job, total int64, limit, offset int) JobsPage {
+func JobsPageFrom(jobs []db.Job, savedIDs map[string]struct{}, total int64, limit, offset int) JobsPage {
+	listings := make([]JobListing, 0, len(jobs))
+	for _, job := range jobs {
+		listing := JobListingFrom(job)
+		if savedIDs != nil {
+			_, listing.Saved = savedIDs[job.ID.String()]
+		}
+		listings = append(listings, listing)
+	}
 	return JobsPage{
-		Jobs:   JobListingsFrom(jobs),
+		Jobs:   listings,
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
@@ -172,6 +181,31 @@ func WriteJobsStats(w http.ResponseWriter, stats JobStats) {
 		Success: true,
 		Message: "Job stats retrieved",
 		Data:    stats,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+type jobSavedState struct {
+	Saved bool `json:"saved"`
+}
+
+type jobSavedResponse struct {
+	Success bool          `json:"success"`
+	Message string        `json:"message"`
+	Data    jobSavedState `json:"data"`
+}
+
+func WriteJobSaved(w http.ResponseWriter, saved bool, message string) {
+	body, err := json.Marshal(jobSavedResponse{
+		Success: true,
+		Message: message,
+		Data:    jobSavedState{Saved: saved},
 	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "internal error")

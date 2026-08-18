@@ -1,0 +1,32 @@
+.save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--text-faint);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.save svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.save:hover:not(:disabled),
+.save:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.saved {
+  color: var(--accent);
+}
+
+.save:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

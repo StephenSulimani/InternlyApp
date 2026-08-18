@@ -1,4 +1,5 @@
 import type { Listing } from "../lib/listings";
+import SaveButton from "./SaveButton";
 import styles from "./ListingCard.module.css";
 
 type Props = {
@@ -6,6 +7,8 @@ type Props = {
   index: number;
   selected?: boolean;
   onSelect?: (listing: Listing) => void;
+  onToggleSave?: (listing: Listing) => void;
+  saveDisabled?: boolean;
 };
 
 export default function ListingCard({
@@ -13,13 +16,15 @@ export default function ListingCard({
   index,
   selected = false,
   onSelect,
+  onToggleSave,
+  saveDisabled = false,
 }: Props) {
   const interactive = Boolean(onSelect);
   const className = `${styles.row} ${selected ? styles.selected : ""} ${
     interactive ? styles.interactive : ""
   }`;
 
-  const content = (
+  const fields = (
     <>
       <span className={styles.index}>{String(index).padStart(2, "0")}</span>
       <div className={styles.main}>
@@ -30,6 +35,33 @@ export default function ListingCard({
       <span className={styles.location}>{listing.location}</span>
       <span className={styles.type}>{listing.type}</span>
       <span className={styles.posted}>{listing.posted}</span>
+    </>
+  );
+
+  if (onToggleSave) {
+    return (
+      <article className={styles.item}>
+        <button
+          type="button"
+          className={className}
+          onClick={() => onSelect?.(listing)}
+          aria-pressed={selected}
+          aria-haspopup={onSelect ? "dialog" : undefined}
+        >
+          {fields}
+        </button>
+        <SaveButton
+          saved={Boolean(listing.saved)}
+          disabled={saveDisabled}
+          onToggle={() => onToggleSave(listing)}
+        />
+      </article>
+    );
+  }
+
+  const content = (
+    <>
+      {fields}
       {interactive && (
         <span className={styles.hint} aria-hidden="true">
           View

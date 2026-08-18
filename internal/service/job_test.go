@@ -6,6 +6,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stephensulimani/internlyapp/internal/db"
 )
 
@@ -405,5 +407,107 @@ func TestJobService_Locations(t *testing.T) {
 	}
 	if len(got) != 2 || got[0] != "Remote" {
 		t.Fatalf("locations = %+v", got)
+	}
+}
+
+func TestParseSavedFilter(t *testing.T) {
+	ok, err := ParseSavedFilter("true")
+	if err != nil || !ok {
+		t.Fatalf("true = %v %v", ok, err)
+	}
+	ok, err = ParseSavedFilter("")
+	if err != nil || ok {
+		t.Fatalf("empty = %v %v", ok, err)
+	}
+	if _, err := ParseSavedFilter("maybe"); !errors.Is(err, ErrInvalidJobsSaved) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestJobService_Search_savedFilterAndFlags(t *testing.T) {
+	var userID, savedID, otherID pgtype.UUID
+	if err := userID.Scan("11111111-1111-1111-1111-111111111111"); err != nil {
+		t.Fatal(err)
+	}
+	if err := savedID.Scan("22222222-2222-2222-2222-222222222222"); err != nil {
+		t.Fatal(err)
+	}
+	if err := otherID.Scan("33333333-3333-3333-3333-333333333333"); err != nil {
+		t.Fatal(err)
+	}
+
+	store := &mockJobStore{
+		jobs: []db.Job{
+			{ID: savedID, ApplicationLink: "https://jobs.example.com/1"},
+			{ID: otherID, ApplicationLink: "https://jobs.example.com/2"},
+		},
+		savedAmong: []pgtype.UUID{savedID},
+	}
+	svc := NewJobService(store)
+
+	page, err := svc.Search(context.Background(), JobListQuery{
+		SavedOnly: true,
+		UserID:    userID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !store.searchParams.FilterSaved || store.searchParams.UserID != userID {
+		t.Fatalf("params = %+v", store.searchParams)
+	}
+	if _, ok := page.SavedIDs[savedID.String()]; !ok {
+		t.Fatalf("saved ids = %+v", page.SavedIDs)
+	}
+	if _, ok := page.SavedIDs[otherID.String()]; ok {
+		t.Fatalf("unexpected saved id = %+v", page.SavedIDs)
+	}
+}
+
+func TestJobService_Save(t *testing.T) {
+	var userID, jobID pgtype.UUID
+	if err := userID.Scan("11111111-1111-1111-1111-111111111111"); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobID.Scan("22222222-2222-2222-2222-222222222222"); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("saves existing job", func(t *testing.T) {
+		store := &mockJobStore{jobs: []db.Job{{ID: jobID}}}
+		svc := NewJobService(store)
+		if err := svc.Save(context.Background(), userID, jobID); err != nil {
+			t.Fatal(err)
+		}
+		if len(store.saveCalls) != 1 || store.saveCalls[0].JobID != jobID {
+			t.Fatalf("save calls = %+v", store.saveCalls)
+		}
+	})
+
+	t.Run("missing job", func(t *testing.T) {
+		store := &mockJobStore{getJobErr: pgx.ErrNoRows}
+		svc := NewJobService(store)
+		err := svc.Save(context.Background(), userID, jobID)
+		if !errors.Is(err, ErrJobNotFound) {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}
+
+func TestJobService_Unsave(t *testing.T) {
+	var userID, jobID pgtype.UUID
+	if err := userID.Scan("11111111-1111-1111-1111-111111111111"); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobID.Scan("22222222-2222-2222-2222-222222222222"); err != nil {
+		t.Fatal(err)
+	}
+
+	store := &mockJobStore{}
+	svc := NewJobService(store)
+	if err := svc.Unsave(context.Background(), userID, jobID); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.unsaveCalls) != 1 || store.unsaveCalls[0].JobID != jobID {
+		t.Fatalf("unsave calls = %+v", store.unsaveCalls)
 	}
 }

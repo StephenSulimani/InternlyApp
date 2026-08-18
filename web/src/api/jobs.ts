@@ -18,6 +18,7 @@ export type Job = {
   first_seen?: string;
   source_name: string;
   description?: string;
+  saved?: boolean;
 };
 
 /** Query params for GET /jobs. */
@@ -28,6 +29,7 @@ export type JobListParams = {
   location?: string;
   source?: string;
   recency?: "24h" | "3d" | "7d" | "";
+  saved?: boolean;
   sort?: "posted" | "company" | "role" | "location" | "type";
   order?: "asc" | "desc";
   limit?: number;
@@ -59,6 +61,9 @@ export async function fetchJobs(params: JobListParams = {}): Promise<JobsPage> {
   }
   if (params.recency) {
     query.set("recency", params.recency);
+  }
+  if (params.saved) {
+    query.set("saved", "true");
   }
   if (params.sort) {
     query.set("sort", params.sort);
@@ -112,6 +117,24 @@ export async function fetchBoardPreview(): Promise<Job[]> {
 export async function fetchJobLocations(): Promise<string[]> {
   const res = await apiClient<ApiResponse<string[]>>("/jobs/locations");
   return res.data ?? [];
+}
+
+/** PUT /jobs/:id/save */
+export async function saveJob(id: string): Promise<boolean> {
+  const res = await apiClient<ApiResponse<{ saved: boolean }>>(
+    `/jobs/${id}/save`,
+    { method: "PUT" },
+  );
+  return res.data?.saved ?? true;
+}
+
+/** DELETE /jobs/:id/save */
+export async function unsaveJob(id: string): Promise<boolean> {
+  const res = await apiClient<ApiResponse<{ saved: boolean }>>(
+    `/jobs/${id}/save`,
+    { method: "DELETE" },
+  );
+  return res.data?.saved ?? false;
 }
 
 /** GET /jobs/:id (not implemented on API yet). */

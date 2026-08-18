@@ -22,6 +22,7 @@ export type BoardFilters = {
   location: string;
   source: string;
   recency: RecencyFilter;
+  saved: boolean;
 };
 
 export const EMPTY_BOARD_FILTERS: BoardFilters = {
@@ -30,6 +31,7 @@ export const EMPTY_BOARD_FILTERS: BoardFilters = {
   location: "",
   source: "",
   recency: "",
+  saved: false,
 };
 
 const RECENCY_MS: Record<Exclude<RecencyFilter, "">, number> = {
@@ -89,6 +91,10 @@ export function filterListings(
       return false;
     }
 
+    if (filters.saved && !listing.saved) {
+      return false;
+    }
+
     if (recencyMs != null) {
       if (!listing.firstSeen) {
         return false;
@@ -109,7 +115,8 @@ export function hasActiveFilters(filters: BoardFilters): boolean {
     filters.type !== "" ||
     filters.location !== "" ||
     filters.source !== "" ||
-    filters.recency !== ""
+    filters.recency !== "" ||
+    filters.saved
   );
 }
 

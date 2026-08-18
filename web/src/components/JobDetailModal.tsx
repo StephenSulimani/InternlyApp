@@ -1,13 +1,21 @@
 import { useEffect, useId, useRef } from "react";
 import type { Listing } from "../lib/listings";
+import SaveButton from "./SaveButton";
 import styles from "./JobDetailModal.module.css";
 
 type Props = {
   listing: Listing | null;
   onClose: () => void;
+  onToggleSave?: (listing: Listing) => void;
+  saveDisabled?: boolean;
 };
 
-export default function JobDetailModal({ listing, onClose }: Props) {
+export default function JobDetailModal({
+  listing,
+  onClose,
+  onToggleSave,
+  saveDisabled = false,
+}: Props) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -103,6 +111,13 @@ export default function JobDetailModal({ listing, onClose }: Props) {
           ) : (
             <span className={styles.applyDisabled}>Link unavailable</span>
           )}
+          {onToggleSave ? (
+            <SaveButton
+              saved={Boolean(listing.saved)}
+              disabled={saveDisabled}
+              onToggle={() => onToggleSave(listing)}
+            />
+          ) : null}
           <button type="button" className={styles.dismiss} onClick={onClose}>
             Keep browsing
           </button>

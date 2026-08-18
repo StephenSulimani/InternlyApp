@@ -33,6 +33,8 @@ func APIRouter() *mux.Router {
 	authed.Use(RequireAuth)
 	authed.HandleFunc("/jobs", ListJobs).Methods("GET")
 	authed.HandleFunc("/jobs/locations", JobLocations).Methods("GET")
+	authed.HandleFunc("/jobs/{id}/save", SaveJob).Methods("PUT")
+	authed.HandleFunc("/jobs/{id}/save", UnsaveJob).Methods("DELETE")
 
 	return router
 }

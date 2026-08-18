@@ -13,6 +13,7 @@ export type Listing = {
   applicationLink?: string;
   description?: string;
   source?: string;
+  saved?: boolean;
 };
 
 export function jobToListing(job: Job): Listing {
@@ -30,6 +31,7 @@ export function jobToListing(job: Job): Listing {
     applicationLink: job.application_link,
     description: job.description,
     source: job.source_name,
+    saved: Boolean(job.saved),
   };
 }
 

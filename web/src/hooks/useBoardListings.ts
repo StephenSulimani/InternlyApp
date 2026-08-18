@@ -41,6 +41,7 @@ function toJobListParams(
     location: filters.location.trim() || undefined,
     source: filters.source || undefined,
     recency: filters.recency || undefined,
+    saved: filters.saved || undefined,
     sort: sort.field,
     order: sort.dir,
     limit,

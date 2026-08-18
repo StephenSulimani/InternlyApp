@@ -222,9 +222,31 @@
   border-color: var(--accent);
 }
 
+.savedToggle {
+  padding: 0.65rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--rule-strong);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.savedToggle:hover:not(:disabled),
+.savedOn {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.savedOn {
+  background: var(--accent-dim);
+}
+
 .search > input:disabled,
 .field select:disabled,
-.clear:disabled {
+.clear:disabled,
+.savedToggle:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }

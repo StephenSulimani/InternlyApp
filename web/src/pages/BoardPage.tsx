@@ -8,6 +8,7 @@ import BoardToolbar from "../components/BoardToolbar";
 import ListingCard from "../components/ListingCard";
 import JobDetailModal from "../components/JobDetailModal";
 import { useBoardListings } from "../hooks/useBoardListings";
+import { useToggleSavedJob } from "../hooks/useToggleSavedJob";
 import {
   EMPTY_BOARD_FILTERS,
   DEFAULT_BOARD_SORT,
@@ -36,8 +37,28 @@ export default function BoardPage() {
     isError,
     facets,
   } = useBoardListings(filters, sort, offset, isAuthenticated);
+  const toggleSave = useToggleSavedJob();
 
   const closeModal = useCallback(() => setSelected(null), []);
+
+  function handleToggleSave(listing: Listing) {
+    toggleSave.mutate(
+      { id: listing.id, saved: Boolean(listing.saved) },
+      {
+        onSuccess: (nextSaved) => {
+          setSelected((current) => {
+            if (!current || current.id !== listing.id) {
+              return current;
+            }
+            if (filters.saved && !nextSaved) {
+              return null;
+            }
+            return { ...current, saved: nextSaved };
+          });
+        },
+      },
+    );
+  }
 
   function handleFiltersChange(next: BoardFilters) {
     setFilters(next);
@@ -164,7 +185,14 @@ export default function BoardPage() {
               !isError &&
               listings.length === 0 && (
                 <p className={styles.empty}>
-                  {filtersActive ? (
+                  {filters.saved &&
+                  !filters.q.trim() &&
+                  !filters.type &&
+                  !filters.location &&
+                  !filters.source &&
+                  !filters.recency ? (
+                    "No saved roles yet. Heart a listing to keep it here."
+                  ) : filtersActive ? (
                     <>
                       No roles match those filters. Try a broader search, or{" "}
                       <button
@@ -190,6 +218,8 @@ export default function BoardPage() {
                   index={offset + index + 1}
                   selected={selected?.id === listing.id}
                   onSelect={setSelected}
+                  onToggleSave={handleToggleSave}
+                  saveDisabled={toggleSave.isPending}
                 />
               ))}
           </div>
@@ -226,7 +256,12 @@ export default function BoardPage() {
         </section>
       </main>
       <Footer />
-      <JobDetailModal listing={selected} onClose={closeModal} />
+      <JobDetailModal
+        listing={selected}
+        onClose={closeModal}
+        onToggleSave={handleToggleSave}
+        saveDisabled={toggleSave.isPending}
+      />
     </PageShell>
   );
 }

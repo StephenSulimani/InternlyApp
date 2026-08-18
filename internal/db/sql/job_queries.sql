@@ -52,7 +52,16 @@ WHERE
     AND (sqlc.arg('filter_source')::text = ''
         OR source_name = sqlc.arg('filter_source'))
     AND (sqlc.arg('recency_hours')::int = 0
-        OR first_seen >= NOW() - (sqlc.arg('recency_hours')::int * INTERVAL '1 hour'));
+        OR first_seen >= NOW() - (sqlc.arg('recency_hours')::int * INTERVAL '1 hour'))
+    AND (NOT sqlc.arg('filter_saved')::bool
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                user_saved_jobs s
+            WHERE
+                s.user_id = sqlc.arg('user_id')
+                AND s.job_id = id));
 
 -- name: SearchJobs :many
 SELECT
@@ -86,6 +95,15 @@ WHERE
         OR source_name = sqlc.arg('filter_source'))
     AND (sqlc.arg('recency_hours')::int = 0
         OR first_seen >= NOW() - (sqlc.arg('recency_hours')::int * INTERVAL '1 hour'))
+    AND (NOT sqlc.arg('filter_saved')::bool
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                user_saved_jobs s
+            WHERE
+                s.user_id = sqlc.arg('user_id')
+                AND s.job_id = id))
 ORDER BY
     CASE
     WHEN sqlc.arg('sort_by')::text = 'company'

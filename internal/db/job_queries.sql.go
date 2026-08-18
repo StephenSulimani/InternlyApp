@@ -43,14 +43,25 @@ WHERE
         OR source_name = $4)
     AND ($5::int = 0
         OR first_seen >= NOW() - ($5::int * INTERVAL '1 hour'))
+    AND (NOT $6::bool
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                user_saved_jobs s
+            WHERE
+                s.user_id = $7
+                AND s.job_id = id))
 `
 
 type CountJobsParams struct {
-	Q               string   `json:"q"`
-	FilterType      string   `json:"filter_type"`
-	FilterLocations []string `json:"filter_locations"`
-	FilterSource    string   `json:"filter_source"`
-	RecencyHours    int32    `json:"recency_hours"`
+	Q               string      `json:"q"`
+	FilterType      string      `json:"filter_type"`
+	FilterLocations []string    `json:"filter_locations"`
+	FilterSource    string      `json:"filter_source"`
+	RecencyHours    int32       `json:"recency_hours"`
+	FilterSaved     bool        `json:"filter_saved"`
+	UserID          pgtype.UUID `json:"user_id"`
 }
 
 func (q *Queries) CountJobs(ctx context.Context, arg CountJobsParams) (int64, error) {
@@ -60,6 +71,8 @@ func (q *Queries) CountJobs(ctx context.Context, arg CountJobsParams) (int64, er
 		arg.FilterLocations,
 		arg.FilterSource,
 		arg.RecencyHours,
+		arg.FilterSaved,
+		arg.UserID,
 	)
 	var column_1 int64
 	err := row.Scan(&column_1)
@@ -317,60 +330,71 @@ WHERE
         OR source_name = $4)
     AND ($5::int = 0
         OR first_seen >= NOW() - ($5::int * INTERVAL '1 hour'))
+    AND (NOT $6::bool
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                user_saved_jobs s
+            WHERE
+                s.user_id = $7
+                AND s.job_id = id))
 ORDER BY
     CASE
-    WHEN $6::text = 'company'
-        AND $7::text = 'asc' THEN
+    WHEN $8::text = 'company'
+        AND $9::text = 'asc' THEN
         lower(COALESCE(company, ''))
-    WHEN $6::text = 'role'
-        AND $7::text = 'asc' THEN
+    WHEN $8::text = 'role'
+        AND $9::text = 'asc' THEN
         lower(COALESCE(role_title, ''))
-    WHEN $6::text = 'type'
-        AND $7::text = 'asc' THEN
+    WHEN $8::text = 'type'
+        AND $9::text = 'asc' THEN
         lower(COALESCE(job_type, ''))
-    WHEN $6::text = 'location'
-        AND $7::text = 'asc' THEN
+    WHEN $8::text = 'location'
+        AND $9::text = 'asc' THEN
         lower(COALESCE(locations[1], ''))
     END ASC NULLS LAST,
     CASE
-    WHEN $6::text = 'company'
-        AND $7::text = 'desc' THEN
+    WHEN $8::text = 'company'
+        AND $9::text = 'desc' THEN
         lower(COALESCE(company, ''))
-    WHEN $6::text = 'role'
-        AND $7::text = 'desc' THEN
+    WHEN $8::text = 'role'
+        AND $9::text = 'desc' THEN
         lower(COALESCE(role_title, ''))
-    WHEN $6::text = 'type'
-        AND $7::text = 'desc' THEN
+    WHEN $8::text = 'type'
+        AND $9::text = 'desc' THEN
         lower(COALESCE(job_type, ''))
-    WHEN $6::text = 'location'
-        AND $7::text = 'desc' THEN
+    WHEN $8::text = 'location'
+        AND $9::text = 'desc' THEN
         lower(COALESCE(locations[1], ''))
     END DESC NULLS LAST,
     CASE
-    WHEN $6::text = 'posted'
-        AND $7::text = 'asc' THEN
+    WHEN $8::text = 'posted'
+        AND $9::text = 'asc' THEN
         first_seen
     END ASC NULLS LAST,
     CASE
-    WHEN $6::text = 'posted'
-        AND $7::text = 'desc' THEN
+    WHEN $8::text = 'posted'
+        AND $9::text = 'desc' THEN
         first_seen
     END DESC NULLS LAST,
     first_seen DESC,
     id ASC
-LIMIT $9 OFFSET $8
+LIMIT $11 OFFSET $10
 `
 
 type SearchJobsParams struct {
-	Q               string   `json:"q"`
-	FilterType      string   `json:"filter_type"`
-	FilterLocations []string `json:"filter_locations"`
-	FilterSource    string   `json:"filter_source"`
-	RecencyHours    int32    `json:"recency_hours"`
-	SortBy          string   `json:"sort_by"`
-	SortDir         string   `json:"sort_dir"`
-	RowOffset       int32    `json:"row_offset"`
-	RowLimit        int32    `json:"row_limit"`
+	Q               string      `json:"q"`
+	FilterType      string      `json:"filter_type"`
+	FilterLocations []string    `json:"filter_locations"`
+	FilterSource    string      `json:"filter_source"`
+	RecencyHours    int32       `json:"recency_hours"`
+	FilterSaved     bool        `json:"filter_saved"`
+	UserID          pgtype.UUID `json:"user_id"`
+	SortBy          string      `json:"sort_by"`
+	SortDir         string      `json:"sort_dir"`
+	RowOffset       int32       `json:"row_offset"`
+	RowLimit        int32       `json:"row_limit"`
 }
 
 func (q *Queries) SearchJobs(ctx context.Context, arg SearchJobsParams) ([]Job, error) {
@@ -380,6 +404,8 @@ func (q *Queries) SearchJobs(ctx context.Context, arg SearchJobsParams) ([]Job, 
 		arg.FilterLocations,
 		arg.FilterSource,
 		arg.RecencyHours,
+		arg.FilterSaved,
+		arg.UserID,
 		arg.SortBy,
 		arg.SortDir,
 		arg.RowOffset,

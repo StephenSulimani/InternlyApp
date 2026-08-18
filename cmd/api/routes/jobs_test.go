@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stephensulimani/internlyapp/cmd/api/middleware"
 	"github.com/stephensulimani/internlyapp/internal/auth"
@@ -28,6 +29,7 @@ type jobsListResponse struct {
 			ID          string `json:"id"`
 			Company     string `json:"company"`
 			Description string `json:"description"`
+			Saved       bool   `json:"saved"`
 		} `json:"jobs"`
 		Total  int64 `json:"total"`
 		Limit  int   `json:"limit"`
@@ -347,6 +349,101 @@ func TestRequireAuth_inactiveUser(t *testing.T) {
 	assertAPIError(t, rec, http.StatusForbidden, "Account pending activation")
 }
 
+func TestListJobsRoute_savedFilter(t *testing.T) {
+	var jobID pgtype.UUID
+	if err := jobID.Scan("550e8400-e29b-41d4-a716-446655440000"); err != nil {
+		t.Fatal(err)
+	}
+	store := &mockJobStore{
+		jobs:       []db.Job{{ID: jobID, ApplicationLink: "https://jobs.example.com/1"}},
+		savedAmong: []pgtype.UUID{jobID},
+	}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?saved=true", token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !store.searchParams.FilterSaved {
+		t.Fatalf("filter_saved = %v", store.searchParams.FilterSaved)
+	}
+
+	var res jobsListResponse
+	if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Data.Jobs) != 1 || !res.Data.Jobs[0].Saved {
+		t.Fatalf("response = %+v", res)
+	}
+}
+
+func TestListJobsRoute_invalidSaved(t *testing.T) {
+	handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodGet, "/jobs?saved=maybe", token)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusBadRequest, "Invalid saved filter")
+}
+
+func TestSaveJobRoute(t *testing.T) {
+	var jobID pgtype.UUID
+	if err := jobID.Scan("550e8400-e29b-41d4-a716-446655440000"); err != nil {
+		t.Fatal(err)
+	}
+	store := &mockJobStore{jobs: []db.Job{{ID: jobID}}}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodPut, "/jobs/"+jobID.String()+"/save", token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.saveCalls) != 1 || store.saveCalls[0].JobID != jobID {
+		t.Fatalf("save calls = %+v", store.saveCalls)
+	}
+}
+
+func TestSaveJobRoute_notFound(t *testing.T) {
+	handler, token := testAuthedJobsHandler(t, &mockJobStore{getJobErr: pgx.ErrNoRows}, activeTestUser())
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodPut, "/jobs/550e8400-e29b-41d4-a716-446655440000/save", token)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusNotFound, "Job not found")
+}
+
+func TestSaveJobRoute_invalidID(t *testing.T) {
+	handler, token := testAuthedJobsHandler(t, &mockJobStore{}, activeTestUser())
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodPut, "/jobs/not-a-uuid/save", token)
+	handler.ServeHTTP(rec, req)
+	assertAPIError(t, rec, http.StatusBadRequest, "Invalid job id")
+}
+
+func TestUnsaveJobRoute(t *testing.T) {
+	var jobID pgtype.UUID
+	if err := jobID.Scan("550e8400-e29b-41d4-a716-446655440000"); err != nil {
+		t.Fatal(err)
+	}
+	store := &mockJobStore{}
+	handler, token := testAuthedJobsHandler(t, store, activeTestUser())
+
+	rec := httptest.NewRecorder()
+	req := authedRequest(http.MethodDelete, "/jobs/"+jobID.String()+"/save", token)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.unsaveCalls) != 1 || store.unsaveCalls[0].JobID != jobID {
+		t.Fatalf("unsave calls = %+v", store.unsaveCalls)
+	}
+}
+
 func activeTestUser() db.User {
 	var id pgtype.UUID
 	_ = id.Scan("550e8400-e29b-41d4-a716-446655440000")
@@ -397,6 +494,8 @@ func testAuthedJobsHandler(t *testing.T, store service.JobReader, user db.User) 
 	authed.Use(RequireAuth)
 	authed.HandleFunc("/jobs", ListJobs).Methods("GET")
 	authed.HandleFunc("/jobs/locations", JobLocations).Methods("GET")
+	authed.HandleFunc("/jobs/{id}/save", SaveJob).Methods("PUT")
+	authed.HandleFunc("/jobs/{id}/save", UnsaveJob).Methods("DELETE")
 
 	return router, token
 }

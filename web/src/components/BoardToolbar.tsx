@@ -342,6 +342,16 @@ export default function BoardToolbar({
           </select>
         </label>
 
+        <button
+          type="button"
+          className={filters.saved ? `${styles.savedToggle} ${styles.savedOn}` : styles.savedToggle}
+          aria-pressed={filters.saved}
+          onClick={() => onChange({ ...filters, saved: !filters.saved })}
+          disabled={disabled}
+        >
+          Saved
+        </button>
+
         {active && (
           <button
             type="button"
