@@ -21,6 +21,9 @@ type mockJobStore struct {
 	createErr   error
 	createJob   func(ctx context.Context, arg db.CreateJobParams) (db.Job, error)
 	createCalls []db.CreateJobParams
+
+	atsCalls []db.UpsertCompanyATSParams
+	atsErr   error
 }
 
 func (m *mockJobStore) CreateJob(ctx context.Context, arg db.CreateJobParams) (db.Job, error) {
@@ -32,6 +35,14 @@ func (m *mockJobStore) CreateJob(ctx context.Context, arg db.CreateJobParams) (d
 		return db.Job{}, m.createErr
 	}
 	return db.Job{}, nil
+}
+
+func (m *mockJobStore) UpsertCompanyATS(ctx context.Context, arg db.UpsertCompanyATSParams) (db.CompanyAt, error) {
+	m.atsCalls = append(m.atsCalls, arg)
+	if m.atsErr != nil {
+		return db.CompanyAt{}, m.atsErr
+	}
+	return db.CompanyAt{AtsUrl: arg.AtsUrl, AtsName: arg.AtsName, CompanyName: arg.CompanyName}, nil
 }
 
 func (m *mockJobStore) GetJobsLimit(ctx context.Context, limit int32) ([]db.Job, error) {

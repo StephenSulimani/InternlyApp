@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stephensulimani/internlyapp/internal/ats"
 	"github.com/stephensulimani/internlyapp/internal/db"
 	"go.uber.org/zap"
 )
@@ -19,13 +20,14 @@ type IngestResult struct {
 	Inserted          int
 	SkippedDuplicates int
 	Failed            int
+	ATSDiscovered     int
 }
 
 type JobIngestService struct {
-	store JobWriter
+	store JobIngestStore
 }
 
-func NewJobIngestService(store JobWriter) *JobIngestService {
+func NewJobIngestService(store JobIngestStore) *JobIngestService {
 	return &JobIngestService{store: store}
 }
 
@@ -35,6 +37,7 @@ func (s *JobIngestService) Ingest(ctx context.Context, log *zap.SugaredLogger, s
 		return IngestResult{}, fmt.Errorf("scrape: %w", err)
 	}
 
+	seenBoards := make(map[string]struct{})
 	result := IngestResult{Scraped: len(jobs)}
 	for _, job := range jobs {
 		_, err := s.store.CreateJob(ctx, db.ToCreateParams(job))
@@ -42,14 +45,50 @@ func (s *JobIngestService) Ingest(ctx context.Context, log *zap.SugaredLogger, s
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 				result.SkippedDuplicates++
+			} else {
+				log.Errorw("create job failed", "application_link", job.ApplicationLink, "error", err)
+				result.Failed++
 				continue
 			}
-			log.Errorw("create job failed", "application_link", job.ApplicationLink, "error", err)
-			result.Failed++
-			continue
+		} else {
+			result.Inserted++
 		}
-		result.Inserted++
+
+		if s.discoverATS(ctx, log, job, seenBoards) {
+			result.ATSDiscovered++
+		}
 	}
 
 	return result, nil
+}
+
+func (s *JobIngestService) discoverATS(ctx context.Context, log *zap.SugaredLogger, job db.Job, seen map[string]struct{}) bool {
+	board, ok := ats.Discover(job.ApplicationLink)
+	if !ok {
+		return false
+	}
+	if _, exists := seen[board.URL]; exists {
+		return false
+	}
+
+	company := ""
+	if job.Company != nil {
+		company = *job.Company
+	}
+	if company == "" {
+		company = board.URL
+	}
+
+	_, err := s.store.UpsertCompanyATS(ctx, db.UpsertCompanyATSParams{
+		CompanyName: company,
+		AtsName:     board.Name,
+		AtsUrl:      board.URL,
+	})
+	if err != nil {
+		log.Errorw("upsert company ats failed", "ats_url", board.URL, "error", err)
+		return false
+	}
+
+	seen[board.URL] = struct{}{}
+	return true
 }

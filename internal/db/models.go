@@ -10,10 +10,13 @@ import (
 )
 
 type CompanyAt struct {
-	ID          pgtype.UUID `json:"id"`
-	CompanyName string      `json:"company_name"`
-	AtsUrl      string      `json:"ats_url"`
-	Working     bool        `json:"working"`
+	ID          pgtype.UUID        `json:"id"`
+	CompanyName string             `json:"company_name"`
+	AtsName     string             `json:"ats_name"`
+	AtsUrl      string             `json:"ats_url"`
+	Working     bool               `json:"working"`
+	FirstSeen   pgtype.Timestamptz `json:"first_seen"`
+	LastSeen    pgtype.Timestamptz `json:"last_seen"`
 }
 
 type Job struct {

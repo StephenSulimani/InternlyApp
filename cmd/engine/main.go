@@ -48,6 +48,7 @@ func main() {
 			"inserted", result.Inserted,
 			"skipped_duplicates", result.SkippedDuplicates,
 			"failed", result.Failed,
+			"ats_discovered", result.ATSDiscovered,
 		)
 	}
 }
