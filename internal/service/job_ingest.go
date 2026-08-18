@@ -40,6 +40,9 @@ func (s *JobIngestService) Ingest(ctx context.Context, log *zap.SugaredLogger, s
 	seenBoards := make(map[string]struct{})
 	result := IngestResult{Scraped: len(jobs)}
 	for _, job := range jobs {
+		board, isATS := ats.Discover(job.ApplicationLink)
+		job.IsAts = boolPtr(isATS)
+
 		_, err := s.store.CreateJob(ctx, db.ToCreateParams(job))
 		if err != nil {
 			var pgErr *pgconn.PgError
@@ -54,7 +57,7 @@ func (s *JobIngestService) Ingest(ctx context.Context, log *zap.SugaredLogger, s
 			result.Inserted++
 		}
 
-		if s.discoverATS(ctx, log, job, seenBoards) {
+		if isATS && s.recordATS(ctx, log, job, board, seenBoards) {
 			result.ATSDiscovered++
 		}
 	}
@@ -62,11 +65,7 @@ func (s *JobIngestService) Ingest(ctx context.Context, log *zap.SugaredLogger, s
 	return result, nil
 }
 
-func (s *JobIngestService) discoverATS(ctx context.Context, log *zap.SugaredLogger, job db.Job, seen map[string]struct{}) bool {
-	board, ok := ats.Discover(job.ApplicationLink)
-	if !ok {
-		return false
-	}
+func (s *JobIngestService) recordATS(ctx context.Context, log *zap.SugaredLogger, job db.Job, board ats.Board, seen map[string]struct{}) bool {
 	if _, exists := seen[board.URL]; exists {
 		return false
 	}
@@ -91,4 +90,8 @@ func (s *JobIngestService) discoverATS(ctx context.Context, log *zap.SugaredLogg
 
 	seen[board.URL] = struct{}{}
 	return true
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

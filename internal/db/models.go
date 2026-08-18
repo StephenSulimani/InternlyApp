@@ -29,6 +29,8 @@ type Job struct {
 	RoleTitle       *string            `json:"role_title"`
 	Locations       []string           `json:"locations"`
 	JobType         *string            `json:"job_type"`
+	Description     *string            `json:"description"`
+	IsAts           *bool              `json:"is_ats"`
 	Metadata        []byte             `json:"metadata"`
 	Embedding       *pgvector.Vector   `json:"embedding"`
 }

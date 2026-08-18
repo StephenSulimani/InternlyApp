@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     role_title text,
     locations text[],
     job_type text,
+    description text,
+    is_ats boolean DEFAULT FALSE,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     embedding VECTOR (384)
 );

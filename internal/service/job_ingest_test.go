@@ -99,12 +99,29 @@ func TestJobIngestService_Ingest(t *testing.T) {
 		if result.ATSDiscovered != 1 {
 			t.Fatalf("ATSDiscovered = %d, want 1", result.ATSDiscovered)
 		}
+		if len(store.createCalls) != 1 || !isTrue(store.createCalls[0].IsAts) {
+			t.Fatalf("createCalls = %+v, want IsAts true", store.createCalls)
+		}
 		if len(store.atsCalls) != 1 {
 			t.Fatalf("atsCalls = %d, want 1", len(store.atsCalls))
 		}
 		got := store.atsCalls[0]
 		if got.AtsName != "greenhouse" || got.AtsUrl != "https://boards.greenhouse.io/stripe" || got.CompanyName != "Stripe" {
 			t.Fatalf("ats upsert = %+v", got)
+		}
+	})
+
+	t.Run("sets is_ats false for non-ats links", func(t *testing.T) {
+		store := &mockJobStore{}
+		svc := NewJobIngestService(store)
+		job := db.Job{ApplicationLink: "https://www.linkedin.com/jobs/view/1"}
+
+		_, err := svc.Ingest(context.Background(), log, stubJobSource{jobs: []db.Job{job}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(store.createCalls) != 1 || isTrue(store.createCalls[0].IsAts) {
+			t.Fatalf("createCalls = %+v, want IsAts false", store.createCalls)
 		}
 	})
 
@@ -141,4 +158,8 @@ func TestJobIngestService_Ingest(t *testing.T) {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+func isTrue(v *bool) bool {
+	return v != nil && *v
 }

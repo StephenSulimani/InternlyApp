@@ -12,11 +12,10 @@ import (
 )
 
 const createJob = `-- name: CreateJob :one
-INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, metadata)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, '{}'::jsonb) -- If $9 is null, use the default
-)
+INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, is_ats, metadata)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, '{}'::jsonb))
 RETURNING
-    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, metadata, embedding
+    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata, embedding
 `
 
 type CreateJobParams struct {
@@ -28,7 +27,8 @@ type CreateJobParams struct {
 	RoleTitle       *string            `json:"role_title"`
 	Locations       []string           `json:"locations"`
 	JobType         *string            `json:"job_type"`
-	Column9         interface{}        `json:"column_9"`
+	IsAts           *bool              `json:"is_ats"`
+	Column10        interface{}        `json:"column_10"`
 }
 
 func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, error) {
@@ -41,7 +41,8 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		arg.RoleTitle,
 		arg.Locations,
 		arg.JobType,
-		arg.Column9,
+		arg.IsAts,
+		arg.Column10,
 	)
 	var i Job
 	err := row.Scan(
@@ -54,6 +55,8 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		&i.RoleTitle,
 		&i.Locations,
 		&i.JobType,
+		&i.Description,
+		&i.IsAts,
 		&i.Metadata,
 		&i.Embedding,
 	)
@@ -62,7 +65,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 
 const getJobsByCompany = `-- name: GetJobsByCompany :many
 SELECT
-    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, metadata, embedding
+    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata, embedding
 FROM
     jobs
 WHERE
@@ -88,6 +91,8 @@ func (q *Queries) GetJobsByCompany(ctx context.Context, company *string) ([]Job,
 			&i.RoleTitle,
 			&i.Locations,
 			&i.JobType,
+			&i.Description,
+			&i.IsAts,
 			&i.Metadata,
 			&i.Embedding,
 		); err != nil {
@@ -103,7 +108,7 @@ func (q *Queries) GetJobsByCompany(ctx context.Context, company *string) ([]Job,
 
 const getJobsLimit = `-- name: GetJobsLimit :many
 SELECT
-    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, metadata, embedding
+    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata, embedding
 FROM
     jobs
 ORDER BY
@@ -130,6 +135,8 @@ func (q *Queries) GetJobsLimit(ctx context.Context, limit int32) ([]Job, error) 
 			&i.RoleTitle,
 			&i.Locations,
 			&i.JobType,
+			&i.Description,
+			&i.IsAts,
 			&i.Metadata,
 			&i.Embedding,
 		); err != nil {

@@ -10,6 +10,7 @@ func ToCreateParams(j Job) CreateJobParams {
 		RoleTitle:       j.RoleTitle,
 		Locations:       j.Locations,
 		JobType:         j.JobType,
-		Column9:         j.Metadata,
+		IsAts:           j.IsAts,
+		Column10:        j.Metadata,
 	}
 }
