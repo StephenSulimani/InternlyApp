@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -12,6 +13,10 @@ import (
 	"github.com/stephensulimani/internlyapp/internal/service"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
+)
+
+const (
+	atsBoardWorkers = 8
 )
 
 const (
@@ -68,53 +73,65 @@ func ingestWorkingATSBoards(ctx context.Context, log *zap.SugaredLogger, queries
 	}
 
 	providers := ats.DefaultProviders(ats.NewClient())
-	limiter := rate.NewLimiter(rate.Every(time.Second), 1)
+	limiter := rate.NewLimiter(rate.Every(200*time.Millisecond), atsBoardWorkers)
 
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, atsBoardWorkers)
 	for _, row := range boards {
 		provider, ok := providers[row.AtsName]
 		if !ok {
 			continue
 		}
-		if err := limiter.Wait(ctx); err != nil {
-			log.Errorw("ats rate limit wait failed", "error", err)
-			return
-		}
 
-		source := &ats.BoardSource{
-			Ctx:      ctx,
-			Provider: provider,
-			Board: ats.Board{
-				Name:    row.AtsName,
-				URL:     row.AtsUrl,
-				Company: row.CompanyName,
-			},
-		}
-		result, err := ingest.IngestBoard(ctx, log, source)
-		if errors.Is(err, ats.ErrBoardGone) {
-			if markErr := queries.SetCompanyATSWorking(ctx, db.SetCompanyATSWorkingParams{
-				ID:      row.ID,
-				Working: false,
-			}); markErr != nil {
-				log.Errorw("mark ats board not working failed", "ats_url", row.AtsUrl, "error", markErr)
-			} else {
-				log.Warnw("marked ats board not working", "ats", row.AtsName, "ats_url", row.AtsUrl)
+		wg.Add(1)
+		go func(row db.CompanyAt, provider ats.Provider) {
+			defer wg.Done()
+
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if err := limiter.Wait(ctx); err != nil {
+				log.Errorw("ats rate limit wait failed", "error", err)
+				return
 			}
-			continue
-		}
-		if err != nil {
-			log.Errorw("ats ingest failed", "ats", row.AtsName, "ats_url", row.AtsUrl, "error", err)
-			continue
-		}
-		log.Infow("ats ingest complete",
-			"ats", row.AtsName,
-			"company", row.CompanyName,
-			"ats_url", row.AtsUrl,
-			"scraped", result.Scraped,
-			"inserted", result.Inserted,
-			"enriched", result.Enriched,
-			"skipped", result.Skipped,
-			"skipped_duplicates", result.SkippedDuplicates,
-			"failed", result.Failed,
-		)
+
+			source := &ats.BoardSource{
+				Ctx:      ctx,
+				Provider: provider,
+				Board: ats.Board{
+					Name:    row.AtsName,
+					URL:     row.AtsUrl,
+					Company: row.CompanyName,
+				},
+			}
+			result, err := ingest.IngestBoard(ctx, log, source)
+			if errors.Is(err, ats.ErrBoardGone) {
+				if markErr := queries.SetCompanyATSWorking(ctx, db.SetCompanyATSWorkingParams{
+					ID:      row.ID,
+					Working: false,
+				}); markErr != nil {
+					log.Errorw("mark ats board not working failed", "ats_url", row.AtsUrl, "error", markErr)
+				} else {
+					log.Warnw("marked ats board not working", "ats", row.AtsName, "ats_url", row.AtsUrl)
+				}
+				return
+			}
+			if err != nil {
+				log.Errorw("ats ingest failed", "ats", row.AtsName, "ats_url", row.AtsUrl, "error", err)
+				return
+			}
+			log.Infow("ats ingest complete",
+				"ats", row.AtsName,
+				"company", row.CompanyName,
+				"ats_url", row.AtsUrl,
+				"scraped", result.Scraped,
+				"inserted", result.Inserted,
+				"enriched", result.Enriched,
+				"skipped", result.Skipped,
+				"skipped_duplicates", result.SkippedDuplicates,
+				"failed", result.Failed,
+			)
+		}(row, provider)
 	}
+	wg.Wait()
 }

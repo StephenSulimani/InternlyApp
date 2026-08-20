@@ -141,7 +141,7 @@ func (s *JobIngestService) insertBoardJob(ctx context.Context, log *zap.SugaredL
 func (s *JobIngestService) enrichJob(ctx context.Context, log *zap.SugaredLogger, existing, scraped db.Job) bool {
 	desc := ""
 	if scraped.Description != nil {
-		desc = strings.TrimSpace(*scraped.Description)
+		desc = strings.TrimSpace(ats.HTMLToText(*scraped.Description))
 	}
 	if desc == "" {
 		return false
