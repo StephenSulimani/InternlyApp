@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const listWorkingCompanyATS = `-- name: ListWorkingCompanyATS :many
@@ -46,6 +48,25 @@ func (q *Queries) ListWorkingCompanyATS(ctx context.Context) ([]CompanyAt, error
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCompanyATSWorking = `-- name: SetCompanyATSWorking :exec
+UPDATE
+    company_ats
+SET
+    working = $2
+WHERE
+    id = $1
+`
+
+type SetCompanyATSWorkingParams struct {
+	ID      pgtype.UUID `json:"id"`
+	Working bool        `json:"working"`
+}
+
+func (q *Queries) SetCompanyATSWorking(ctx context.Context, arg SetCompanyATSWorkingParams) error {
+	_, err := q.db.Exec(ctx, setCompanyATSWorking, arg.ID, arg.Working)
+	return err
 }
 
 const upsertCompanyATS = `-- name: UpsertCompanyATS :one

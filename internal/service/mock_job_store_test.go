@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"regexp"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stephensulimani/internlyapp/internal/db"
 )
@@ -37,6 +39,11 @@ type mockJobStore struct {
 	atsCalls []db.UpsertCompanyATSParams
 	atsErr   error
 
+	findATSErr      error
+	findJobForATS   func(ctx context.Context, arg db.FindJobForATSPostingParams) (db.Job, error)
+	updateDescErr   error
+	updateDescCalls []db.UpdateJobDescriptionParams
+
 	getJobErr     error
 	getJob        func(ctx context.Context, id pgtype.UUID) (db.Job, error)
 	saveErr       error
@@ -64,6 +71,37 @@ func (m *mockJobStore) UpsertCompanyATS(ctx context.Context, arg db.UpsertCompan
 		return db.CompanyAt{}, m.atsErr
 	}
 	return db.CompanyAt{AtsUrl: arg.AtsUrl, AtsName: arg.AtsName, CompanyName: arg.CompanyName}, nil
+}
+
+func (m *mockJobStore) FindJobForATSPosting(ctx context.Context, arg db.FindJobForATSPostingParams) (db.Job, error) {
+	if m.findJobForATS != nil {
+		return m.findJobForATS(ctx, arg)
+	}
+	if m.findATSErr != nil {
+		return db.Job{}, m.findATSErr
+	}
+	for _, job := range m.jobs {
+		for _, link := range arg.Links {
+			if job.ApplicationLink == link {
+				return job, nil
+			}
+		}
+		if arg.LinkRegex != "" {
+			re, err := regexp.Compile(arg.LinkRegex)
+			if err == nil && re.MatchString(job.ApplicationLink) {
+				return job, nil
+			}
+		}
+	}
+	return db.Job{}, pgx.ErrNoRows
+}
+
+func (m *mockJobStore) UpdateJobDescription(ctx context.Context, arg db.UpdateJobDescriptionParams) (int64, error) {
+	m.updateDescCalls = append(m.updateDescCalls, arg)
+	if m.updateDescErr != nil {
+		return 0, m.updateDescErr
+	}
+	return 1, nil
 }
 
 func (m *mockJobStore) GetJobsLimit(ctx context.Context, limit int32) ([]db.Job, error) {

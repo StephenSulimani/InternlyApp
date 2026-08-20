@@ -17,3 +17,11 @@ WHERE
     working = TRUE
 ORDER BY
     last_seen DESC;
+
+-- name: SetCompanyATSWorking :exec
+UPDATE
+    company_ats
+SET
+    working = $2
+WHERE
+    id = $1;

@@ -7,8 +7,9 @@ import (
 
 // Board is a company career site hosted on a known ATS.
 type Board struct {
-	Name string // greenhouse, lever, ashby, workday, etc.
-	URL  string
+	Name    string // greenhouse, lever, ashby, workday, etc.
+	URL     string
+	Company string // from company_ats; empty when discovered from a posting URL
 }
 
 type parsedLink struct {
@@ -26,7 +27,7 @@ type provider struct {
 }
 
 var providers = []provider{
-	{name: "greenhouse", match: contains("greenhouse.io"), boardPath: greenhousePath},
+	{name: NameGreenhouse, match: contains("greenhouse.io"), boardPath: greenhousePath},
 	{name: "lever", match: exactOrSuffix("jobs.lever.co", "lever.co"), boardPath: firstSegment},
 	{name: "ashby", match: exactOrSuffix("jobs.ashbyhq.com", "ashbyhq.com"), boardPath: ashbyPath},
 	{name: "workday", match: contains("myworkdayjobs.com", "workdayjobs.com"), boardPath: workdayPath},

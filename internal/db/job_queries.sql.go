@@ -86,8 +86,8 @@ func (q *Queries) CountJobs(ctx context.Context, arg CountJobsParams) (int64, er
 }
 
 const createJob = `-- name: CreateJob :one
-INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, is_ats, metadata)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, '{}'::jsonb))
+INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, '{}'::jsonb))
 RETURNING
     id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata, embedding
 `
@@ -101,8 +101,9 @@ type CreateJobParams struct {
 	RoleTitle       *string            `json:"role_title"`
 	Locations       []string           `json:"locations"`
 	JobType         *string            `json:"job_type"`
+	Description     *string            `json:"description"`
 	IsAts           *bool              `json:"is_ats"`
-	Column10        interface{}        `json:"column_10"`
+	Metadata        interface{}        `json:"metadata"`
 }
 
 func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, error) {
@@ -115,9 +116,48 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		arg.RoleTitle,
 		arg.Locations,
 		arg.JobType,
+		arg.Description,
 		arg.IsAts,
-		arg.Column10,
+		arg.Metadata,
 	)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.SourceUrl,
+		&i.SourceName,
+		&i.FirstSeen,
+		&i.ApplicationLink,
+		&i.Company,
+		&i.RoleTitle,
+		&i.Locations,
+		&i.JobType,
+		&i.Description,
+		&i.IsAts,
+		&i.Metadata,
+		&i.Embedding,
+	)
+	return i, err
+}
+
+const findJobForATSPosting = `-- name: FindJobForATSPosting :one
+SELECT
+    id, source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata, embedding
+FROM
+    jobs
+WHERE
+    application_link = ANY ($1::text[])
+    OR ($2::text <> ''
+        AND application_link ~ $2)
+LIMIT 1
+`
+
+type FindJobForATSPostingParams struct {
+	Links     []string `json:"links"`
+	LinkRegex string   `json:"link_regex"`
+}
+
+func (q *Queries) FindJobForATSPosting(ctx context.Context, arg FindJobForATSPostingParams) (Job, error) {
+	row := q.db.QueryRow(ctx, findJobForATSPosting, arg.Links, arg.LinkRegex)
 	var i Job
 	err := row.Scan(
 		&i.ID,
@@ -453,4 +493,27 @@ func (q *Queries) SearchJobs(ctx context.Context, arg SearchJobsParams) ([]Job, 
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateJobDescription = `-- name: UpdateJobDescription :execrows
+UPDATE
+    jobs
+SET
+    description = $1,
+    is_ats = TRUE
+WHERE
+    id = $2
+`
+
+type UpdateJobDescriptionParams struct {
+	Description *string     `json:"description"`
+	ID          pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateJobDescription(ctx context.Context, arg UpdateJobDescriptionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateJobDescription, arg.Description, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

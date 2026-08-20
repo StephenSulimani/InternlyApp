@@ -7,10 +7,30 @@ WHERE
     company = $1;
 
 -- name: CreateJob :one
-INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, is_ats, metadata)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, '{}'::jsonb))
+INSERT INTO jobs (source_url, source_name, first_seen, application_link, company, role_title, locations, job_type, description, is_ats, metadata)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE(sqlc.narg('metadata'), '{}'::jsonb))
 RETURNING
     *;
+
+-- name: FindJobForATSPosting :one
+SELECT
+    *
+FROM
+    jobs
+WHERE
+    application_link = ANY (sqlc.arg('links')::text[])
+    OR (sqlc.arg('link_regex')::text <> ''
+        AND application_link ~ sqlc.arg('link_regex'))
+LIMIT 1;
+
+-- name: UpdateJobDescription :execrows
+UPDATE
+    jobs
+SET
+    description = sqlc.arg('description'),
+    is_ats = TRUE
+WHERE
+    id = sqlc.arg('id');
 
 -- name: GetJobsLimit :many
 SELECT

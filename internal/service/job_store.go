@@ -11,12 +11,18 @@ type JobWriter interface {
 	CreateJob(ctx context.Context, arg db.CreateJobParams) (db.Job, error)
 }
 
+type JobBoardWriter interface {
+	FindJobForATSPosting(ctx context.Context, arg db.FindJobForATSPostingParams) (db.Job, error)
+	UpdateJobDescription(ctx context.Context, arg db.UpdateJobDescriptionParams) (int64, error)
+}
+
 type ATSWriter interface {
 	UpsertCompanyATS(ctx context.Context, arg db.UpsertCompanyATSParams) (db.CompanyAt, error)
 }
 
 type JobIngestStore interface {
 	JobWriter
+	JobBoardWriter
 	ATSWriter
 }
 
