@@ -20,7 +20,6 @@ export type BoardFilters = {
   q: string;
   type: string;
   location: string;
-  source: string;
   recency: RecencyFilter;
   saved: boolean;
 };
@@ -29,7 +28,6 @@ export const EMPTY_BOARD_FILTERS: BoardFilters = {
   q: "",
   type: "",
   location: "",
-  source: "",
   recency: "",
   saved: false,
 };
@@ -89,10 +87,6 @@ export function filterListings(
       }
     }
 
-    if (filters.source && listing.source !== filters.source) {
-      return false;
-    }
-
     if (filters.saved && !listing.saved) {
       return false;
     }
@@ -116,7 +110,6 @@ export function hasActiveFilters(filters: BoardFilters): boolean {
     filters.q.trim() !== "" ||
     filters.type !== "" ||
     filters.location !== "" ||
-    filters.source !== "" ||
     filters.recency !== "" ||
     filters.saved
   );
@@ -134,12 +127,6 @@ export function listingTypes(listings: Listing[]): string[] {
 
 export function listingLocations(listings: Listing[]): string[] {
   return uniqueSorted(listings.flatMap((listing) => listing.locations));
-}
-
-export function listingSources(listings: Listing[]): string[] {
-  return uniqueSorted(
-    listings.map((listing) => listing.source).filter((s): s is string => Boolean(s)),
-  );
 }
 
 /**

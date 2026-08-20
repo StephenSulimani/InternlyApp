@@ -35,6 +35,13 @@ func APIRouter() *mux.Router {
 	authed.HandleFunc("/jobs/locations", JobLocations).Methods("GET")
 	authed.HandleFunc("/jobs/{id}/save", SaveJob).Methods("PUT")
 	authed.HandleFunc("/jobs/{id}/save", UnsaveJob).Methods("DELETE")
+	authed.HandleFunc("/saved-searches", ListSavedSearches).Methods("GET")
+	authed.HandleFunc("/saved-searches/{id}", DeleteSavedSearch).Methods("DELETE")
+
+	savedSearchWrite := authed.NewRoute().Subrouter()
+	savedSearchWrite.Use(middleware.EnsureJSONBody)
+	savedSearchWrite.HandleFunc("/saved-searches", CreateSavedSearch).Methods("POST")
+	savedSearchWrite.HandleFunc("/saved-searches/{id}", UpdateSavedSearch).Methods("PUT")
 
 	return router
 }

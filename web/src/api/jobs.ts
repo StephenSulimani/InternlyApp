@@ -28,7 +28,6 @@ export type JobListParams = {
   type?: string;
   /** CSV locations (quote tokens that contain commas); a job matches if any token matches. */
   location?: string;
-  source?: string;
   recency?: "24h" | "3d" | "7d" | "";
   saved?: boolean;
   sort?: "posted" | "company" | "role" | "location" | "type";
@@ -56,9 +55,6 @@ export async function fetchJobs(params: JobListParams = {}): Promise<JobsPage> {
   }
   if (params.location) {
     query.set("location", params.location);
-  }
-  if (params.source) {
-    query.set("source", params.source);
   }
   if (params.recency) {
     query.set("recency", params.recency);

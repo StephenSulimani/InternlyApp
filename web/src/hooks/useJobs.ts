@@ -7,6 +7,9 @@ import {
 } from "../api/jobs";
 import { queryKeys } from "../api/queryKeys";
 
+/** How often the signed-in board refetches while the page is open. */
+export const BOARD_REFETCH_INTERVAL_MS = 60_000;
+
 export function useJobs(params?: JobListParams, enabled = true) {
   return useQuery({
     queryKey: queryKeys.jobs.list(params),
@@ -14,6 +17,8 @@ export function useJobs(params?: JobListParams, enabled = true) {
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+    refetchInterval: enabled ? BOARD_REFETCH_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
   });
 }
 

@@ -22,6 +22,9 @@ export async function apiClient<T>(
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
   }
+  if (init?.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const token = getToken();
   if (token && !headers.has("Authorization")) {

@@ -15,7 +15,6 @@ const DEFAULT_TYPES = ["Internship", "Full Time"];
 export type BoardFacets = {
   types: string[];
   locations: string[];
-  sources: string[];
 };
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -39,7 +38,6 @@ function toJobListParams(
     q: filters.q.trim() || undefined,
     type: filters.type || undefined,
     location: filters.location.trim() || undefined,
-    source: filters.source || undefined,
     recency: filters.recency || undefined,
     saved: filters.saved || undefined,
     sort: sort.field,
@@ -81,14 +79,8 @@ export function useBoardListings(
         filters.type,
       ]),
       locations: uniqueSorted(locationsQuery.data ?? []),
-      sources: uniqueSorted([
-        ...listings
-          .map((listing) => listing.source)
-          .filter((source): source is string => Boolean(source)),
-        filters.source,
-      ]),
     }),
-    [listings, filters.type, filters.source, locationsQuery.data],
+    [listings, filters.type, locationsQuery.data],
   );
 
   return {

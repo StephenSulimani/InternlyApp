@@ -10,6 +10,10 @@ export const queryKeys = {
     preview: () => [...queryKeys.jobs.all, "preview"] as const,
     locations: () => [...queryKeys.jobs.all, "locations"] as const,
   },
+  savedSearches: {
+    all: ["saved-searches"] as const,
+    list: () => [...queryKeys.savedSearches.all, "list"] as const,
+  },
   auth: {
     all: ["auth"] as const,
     session: () => [...queryKeys.auth.all, "session"] as const,

@@ -19,11 +19,15 @@ export function usePersistedBoardSearch(userId: string | undefined) {
   const [sort, setSort] = useState<BoardSort>(
     () => loadBoardSearch(userId).sort,
   );
+  const [activeSavedSearchId, setActiveSavedSearchId] = useState<string | null>(
+    () => loadBoardSearch(userId).activeSavedSearchId ?? null,
+  );
 
   useEffect(() => {
     const stored = userId ? loadBoardSearch(userId) : EMPTY_BOARD_SEARCH;
     setFilters(stored.filters);
     setSort(stored.sort);
+    setActiveSavedSearchId(stored.activeSavedSearchId ?? null);
   }, [userId]);
 
   useEffect(() => {
@@ -31,8 +35,15 @@ export function usePersistedBoardSearch(userId: string | undefined) {
     if (!id) {
       return;
     }
-    saveBoardSearch(id, { filters, sort });
-  }, [filters, sort]);
+    saveBoardSearch(id, { filters, sort, activeSavedSearchId });
+  }, [filters, sort, activeSavedSearchId]);
 
-  return { filters, setFilters, sort, setSort };
+  return {
+    filters,
+    setFilters,
+    sort,
+    setSort,
+    activeSavedSearchId,
+    setActiveSavedSearchId,
+  };
 }

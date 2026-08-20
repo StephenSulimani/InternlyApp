@@ -6,7 +6,6 @@ import styles from "./BoardToolbar.module.css";
 type Props = {
   types: string[];
   locations: string[];
-  sources: string[];
   filters: BoardFilters;
   onChange: (filters: BoardFilters) => void;
   disabled?: boolean;
@@ -22,13 +21,11 @@ const RECENCY_OPTIONS: { value: RecencyFilter; label: string }[] = [
 export default function BoardToolbar({
   types,
   locations,
-  sources,
   filters,
   onChange,
   disabled = false,
 }: Props) {
   const typeOptions = withSelected(types, filters.type);
-  const sourceOptions = withSelected(sources, filters.source);
   const active = hasActiveFilters(filters);
 
   return (
@@ -64,24 +61,6 @@ export default function BoardToolbar({
             {typeOptions.map((type) => (
               <option key={type} value={type}>
                 {type}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className={styles.field}>
-          <span>Source</span>
-          <select
-            value={filters.source}
-            onChange={(event) =>
-              onChange({ ...filters, source: event.target.value })
-            }
-            disabled={disabled}
-          >
-            <option value="">All sources</option>
-            {sourceOptions.map((source) => (
-              <option key={source} value={source}>
-                {source}
               </option>
             ))}
           </select>

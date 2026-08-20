@@ -52,3 +52,18 @@ type UserSavedJob struct {
 	UserID pgtype.UUID `json:"user_id"`
 	JobID  pgtype.UUID `json:"job_id"`
 }
+
+type UserSavedSearch struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Name      string             `json:"name"`
+	Q         string             `json:"q"`
+	JobType   string             `json:"job_type"`
+	Location  string             `json:"location"`
+	Recency   string             `json:"recency"`
+	SavedOnly bool               `json:"saved_only"`
+	SortBy    string             `json:"sort_by"`
+	SortDir   string             `json:"sort_dir"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}

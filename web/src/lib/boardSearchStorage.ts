@@ -23,6 +23,7 @@ const SORT_DIRS: ReadonlySet<string> = new Set(["asc", "desc"]);
 export type BoardSearchState = {
   filters: BoardFilters;
   sort: BoardSort;
+  activeSavedSearchId?: string | null;
 };
 
 export const EMPTY_BOARD_SEARCH: BoardSearchState = {
@@ -76,6 +77,7 @@ function parseBoardSearch(value: unknown): BoardSearchState {
   return {
     filters: parseBoardFilters(record.filters),
     sort: parseBoardSort(record.sort),
+    activeSavedSearchId: parseActiveSavedSearchId(record.activeSavedSearchId),
   };
 }
 
@@ -90,7 +92,6 @@ function parseBoardFilters(value: unknown): BoardFilters {
     q: asString(record.q),
     type: asString(record.type),
     location: asString(record.location),
-    source: asString(record.source),
     recency: RECENCY.has(String(recency ?? ""))
       ? (recency as RecencyFilter)
       : "",
@@ -120,4 +121,12 @@ function parseBoardSort(value: unknown): BoardSort {
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function parseActiveSavedSearchId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed || null;
 }

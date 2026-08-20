@@ -4,12 +4,21 @@ import Navbar from "../components/Navbar";
 import StatusBar from "../components/StatusBar";
 import Footer from "../components/Footer";
 import PageShell from "../components/PageShell";
+import SavedSearchBar from "../components/SavedSearchBar";
 import BoardToolbar from "../components/BoardToolbar";
 import ListingCard from "../components/ListingCard";
 import JobDetailModal from "../components/JobDetailModal";
 import { useBoardListings } from "../hooks/useBoardListings";
 import { usePersistedBoardSearch } from "../hooks/usePersistedBoardSearch";
+import {
+  useSavedSearchMutations,
+  useSavedSearches,
+} from "../hooks/useSavedSearches";
 import { useToggleSavedJob } from "../hooks/useToggleSavedJob";
+import {
+  boardStateToSavedSearchInput,
+  savedSearchToBoardState,
+} from "../lib/savedSearch";
 import {
   EMPTY_BOARD_FILTERS,
   hasActiveFilters,
@@ -23,11 +32,23 @@ import styles from "./BoardPage.module.css";
 
 export default function BoardPage() {
   const { user, isAuthenticated } = useAuth();
-  const { filters, setFilters, sort, setSort } = usePersistedBoardSearch(
-    user?.id,
-  );
+  const {
+    filters,
+    setFilters,
+    sort,
+    setSort,
+    activeSavedSearchId,
+    setActiveSavedSearchId,
+  } = usePersistedBoardSearch(user?.id);
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Listing | null>(null);
+  const savedSearchesQuery = useSavedSearches(isAuthenticated);
+  const savedSearchMutations = useSavedSearchMutations();
+  const savedSearches = savedSearchesQuery.data ?? [];
+  const savedSearchBusy =
+    savedSearchMutations.create.isPending ||
+    savedSearchMutations.update.isPending ||
+    savedSearchMutations.remove.isPending;
 
   useEffect(() => {
     setOffset(0);
@@ -44,6 +65,16 @@ export default function BoardPage() {
     facets,
   } = useBoardListings(filters, sort, offset, isAuthenticated);
   const toggleSave = useToggleSavedJob();
+
+  useEffect(() => {
+    if (!selected) {
+      return;
+    }
+    const fresh = listings.find((listing) => listing.id === selected.id);
+    if (fresh && fresh !== selected) {
+      setSelected(fresh);
+    }
+  }, [listings, selected]);
 
   const closeModal = useCallback(() => setSelected(null), []);
 
@@ -67,12 +98,14 @@ export default function BoardPage() {
   }
 
   function handleFiltersChange(next: BoardFilters) {
+    setActiveSavedSearchId(null);
     setFilters(next);
     setOffset(0);
     setSelected(null);
   }
 
   function handleSort(field: BoardSortField) {
+    setActiveSavedSearchId(null);
     setSort((current) => {
       if (current.field === field) {
         return { field, dir: current.dir === "asc" ? "desc" : "asc" };
@@ -81,6 +114,69 @@ export default function BoardPage() {
     });
     setOffset(0);
     setSelected(null);
+  }
+
+  function handleSelectSavedSearch(id: string | null) {
+    if (!id) {
+      setActiveSavedSearchId(null);
+      return;
+    }
+    const search = savedSearches.find((item) => item.id === id);
+    if (!search) {
+      return;
+    }
+    const next = savedSearchToBoardState(search);
+    setActiveSavedSearchId(id);
+    setFilters(next.filters);
+    setSort(next.sort);
+    setOffset(0);
+    setSelected(null);
+  }
+
+  function handleSaveSearch(name: string) {
+    savedSearchMutations.create.mutate(
+      boardStateToSavedSearchInput(name, filters, sort),
+      {
+        onSuccess: (created) => {
+          setActiveSavedSearchId(created.id);
+        },
+      },
+    );
+  }
+
+  function handleUpdateSavedSearch() {
+    if (!activeSavedSearchId) {
+      return;
+    }
+    const active = savedSearches.find(
+      (search) => search.id === activeSavedSearchId,
+    );
+    if (!active) {
+      return;
+    }
+    savedSearchMutations.update.mutate({
+      id: activeSavedSearchId,
+      input: boardStateToSavedSearchInput(active.name, filters, sort),
+    });
+  }
+
+  function handleDeleteSavedSearch() {
+    if (!activeSavedSearchId) {
+      return;
+    }
+    const active = savedSearches.find(
+      (search) => search.id === activeSavedSearchId,
+    );
+    if (
+      !window.confirm(
+        active ? `Delete saved search “${active.name}”?` : "Delete saved search?",
+      )
+    ) {
+      return;
+    }
+    savedSearchMutations.remove.mutate(activeSavedSearchId, {
+      onSuccess: () => setActiveSavedSearchId(null),
+    });
   }
 
   const from = total === 0 ? 0 : offset + 1;
@@ -122,10 +218,22 @@ export default function BoardPage() {
             <p className={styles.count}>{countLabel}</p>
           </header>
 
+          <SavedSearchBar
+            searches={savedSearches}
+            activeId={activeSavedSearchId}
+            filters={filters}
+            sort={sort}
+            disabled={!isAuthenticated}
+            busy={savedSearchBusy}
+            onSelect={handleSelectSavedSearch}
+            onSave={handleSaveSearch}
+            onUpdate={handleUpdateSavedSearch}
+            onDelete={handleDeleteSavedSearch}
+          />
+
           <BoardToolbar
             types={facets.types}
             locations={facets.locations}
-            sources={facets.sources}
             filters={filters}
             onChange={handleFiltersChange}
             disabled={!isAuthenticated}
@@ -195,7 +303,6 @@ export default function BoardPage() {
                   !filters.q.trim() &&
                   !filters.type &&
                   !filters.location &&
-                  !filters.source &&
                   !filters.recency ? (
                     "No saved roles yet. Heart a listing to keep it here."
                   ) : filtersActive ? (
